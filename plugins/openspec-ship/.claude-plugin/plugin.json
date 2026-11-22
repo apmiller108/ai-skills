@@ -1,0 +1,10 @@
+{
+  "name": "openspec-ship",
+  "version": "0.1.0",
+  "description": "Ship an OpenSpec change from proposal to merged PR: implement, simplify, design passes, code review, manual test plan, archive and merge.",
+  "author": { "name": "Alex Miller" },
+  "repository": "https://github.com/apmiller108/ai-skills",
+  "license": "MIT",
+  "keywords": ["openspec", "pull-request", "code-review", "verification", "qa"],
+  "engines": { "claude-code": ">=2.1.323" }
+}

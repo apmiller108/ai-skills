@@ -1,0 +1,714 @@
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --sunk: #eaeef2;
+  --ink: #17202a;
+  --ink-2: #4a5663;
+  --ink-3: #7b8794;
+  --line: #d8dee5;
+  --accent: #2458c6;
+  --accent-soft: #e3ebfa;
+  --pass: #1d7a45;
+  --pass-soft: #def2e6;
+  --fail: #b8322a;
+  --fail-soft: #f8e1df;
+  --obs: #9a6410;
+  --obs-soft: #f7ecd6;
+  --muted-soft: #e7eaee;
+  --code-bg: #eef1f5;
+  --shadow: 0 1px 2px rgba(23, 32, 42, .06), 0 4px 16px rgba(23, 32, 42, .05);
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #11161c; --panel: #182029; --sunk: #0d1217; --ink: #e4e9ef; --ink-2: #a9b4c0;
+    --ink-3: #75818e; --line: #29333e; --accent: #7aa2f7; --accent-soft: #1d2a44;
+    --pass: #5fcf8e; --pass-soft: #16301f; --fail: #f07c73; --fail-soft: #3a1c1a;
+    --obs: #e3b35b; --obs-soft: #352812; --muted-soft: #222b35; --code-bg: #0f151b;
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #11161c; --panel: #182029; --sunk: #0d1217; --ink: #e4e9ef; --ink-2: #a9b4c0;
+  --ink-3: #75818e; --line: #29333e; --accent: #7aa2f7; --accent-soft: #1d2a44;
+  --pass: #5fcf8e; --pass-soft: #16301f; --fail: #f07c73; --fail-soft: #3a1c1a;
+  --obs: #e3b35b; --obs-soft: #352812; --muted-soft: #222b35; --code-bg: #0f151b;
+  --shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+
+.app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+header.top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+}
+.brand { display: flex; flex-direction: column; min-width: 0; }
+.brand b { font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
+.brand span { font-size: 12px; color: var(--ink-3); }
+.plat { display: inline-flex; background: var(--sunk); border-radius: 8px; padding: 3px; gap: 2px; }
+.plat button { border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; font-weight: 500; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+.plat button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.plat .count { font: 500 11px var(--mono); color: var(--ink-3); }
+.spacer { flex: 1; }
+.sync { font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); display: inline-block; }
+.sync.ok i { background: var(--pass); }
+.sync.local i { background: var(--obs); }
+.sync.err i { background: var(--fail); }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 7px 12px; border-radius: 7px; font-weight: 500; font-size: 14px; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #0d1217; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0d1217; } }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+
+.body { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; }
+nav.side { border-right: 1px solid var(--line); overflow-y: auto; padding: 14px 10px 40px; background: var(--bg); }
+.side-tools { display: flex; gap: 8px; align-items: center; padding: 0 8px 10px; font-size: 13px; color: var(--ink-2); }
+.side-tools label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.sec { margin-top: 10px; }
+.sec-h { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 8px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.sec-h .mono { letter-spacing: 0; text-transform: none; font-weight: 400; }
+.bar { height: 3px; background: var(--line); border-radius: 2px; margin: 0 8px 6px; overflow: hidden; display: flex; }
+.bar span { display: block; height: 100%; }
+.nav-item { display: grid; grid-template-columns: 14px 34px 1fr auto; gap: 8px; align-items: center; width: 100%; text-align: left; border: 0; background: transparent; padding: 6px 8px; border-radius: 6px; color: var(--ink); font-size: 14px; line-height: 1.3; }
+.nav-item:hover { background: var(--sunk); }
+.nav-item[aria-current="true"] { background: var(--accent-soft); }
+.nav-item .id { font: 500 12px var(--mono); color: var(--ink-3); }
+.nav-item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-item .opt { font-size: 10px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink-3); }
+.dot.pass { background: var(--pass); border-color: var(--pass); }
+.dot.fail, .dot.finding { background: var(--fail); border-color: var(--fail); }
+.dot.recorded { background: var(--obs); border-color: var(--obs); }
+.dot.blocked { background: repeating-linear-gradient(45deg, var(--fail) 0 2px, transparent 2px 4px); border-color: var(--fail); }
+.dot.skip { background: var(--ink-3); border-color: var(--ink-3); }
+.dot.partial { background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); border-color: var(--accent); }
+.nav-summary { margin: 16px 0 0; }
+
+main { overflow-y: auto; padding-block: 28px 80px; padding-inline: 32px; }
+.wrap { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; color: var(--ink-3); }
+.crumbs .pos { font-family: var(--mono); }
+h1 { font-size: 26px; line-height: 1.2; margin: 0; letter-spacing: -.015em; text-wrap: balance; font-weight: 600; }
+h1 .cid { font: 500 .7em var(--mono); color: var(--accent); margin-right: 10px; vertical-align: 2px; }
+h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--muted-soft); color: var(--ink-2); border: 0; }
+.chip.req { background: var(--accent-soft); color: var(--accent); }
+.chip.prior { background: var(--pass-soft); color: var(--pass); }
+.chip.type-observe { background: var(--obs-soft); color: var(--obs); }
+button.chip:hover { outline: 1px solid var(--ink-3); }
+.note { border-left: 3px solid var(--obs); background: var(--obs-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 14px; }
+.note.info { border-color: var(--accent); background: var(--accent-soft); }
+.prose p { margin: 0 0 8px; max-width: 68ch; }
+.risk-list { margin: 6px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+.risk-list b { font-family: var(--mono); font-weight: 500; color: var(--ink); margin-right: 6px; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+ol.steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 8px 6px; border-radius: 8px; }
+ol.steps li.done .txt { color: var(--ink-3); }
+ol.steps li.done .txt code { opacity: .7; }
+ol.steps input[type=checkbox] { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--accent); cursor: pointer; }
+.step-n { font: 500 11px var(--mono); color: var(--ink-3); margin-right: 6px; }
+.cmd { position: relative; margin-top: 8px; }
+.cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 70px 10px 12px; font: 13px/1.5 var(--mono); overflow-x: auto; white-space: pre; }
+.cmd button { position: absolute; top: 6px; right: 6px; }
+ul.expect { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+ul.expect li { max-width: 70ch; }
+
+.result { display: flex; flex-direction: column; gap: 14px; }
+.verdicts { display: flex; flex-wrap: wrap; gap: 8px; }
+.verdict { border: 1.5px solid var(--line); background: var(--panel); padding: 8px 14px; border-radius: 8px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.verdict kbd { font: 11px var(--mono); color: var(--ink-3); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.verdict[aria-pressed="true"].v-pass { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
+.verdict[aria-pressed="true"].v-fail, .verdict[aria-pressed="true"].v-finding { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.verdict[aria-pressed="true"].v-recorded { background: var(--obs-soft); border-color: var(--obs); color: var(--obs); }
+.verdict[aria-pressed="true"].v-blocked, .verdict[aria-pressed="true"].v-skip { background: var(--muted-soft); border-color: var(--ink-3); }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.field input, .field textarea, .field select { border: 1px solid var(--line); background: var(--bg); border-radius: 7px; padding: 8px 10px; width: 100%; }
+.field textarea { min-height: 84px; resize: vertical; }
+.field input.mono, .field textarea.mono { font-family: var(--mono); font-size: 13px; }
+.field.need textarea { border-color: var(--fail); }
+.field .hint { font-size: 12px; color: var(--ink-3); }
+.fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.stamp { font-size: 12px; color: var(--ink-3); }
+.pager { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+table.sum { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.sum th, table.sum td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.sum th { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+table.sum td.n { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 13px; }
+.scroll { overflow-x: auto; }
+.crit { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.crit li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; }
+.crit .ok { color: var(--pass); font-weight: 600; }
+.crit .no { color: var(--fail); font-weight: 600; }
+.crit small { display: block; color: var(--ink-3); font-size: 13px; }
+.finding { border-top: 1px solid var(--line); padding: 10px 0; display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; }
+.finding:first-child { border-top: 0; }
+.finding .num { font: 500 14px var(--mono); color: var(--fail); }
+.finding p { margin: 2px 0 0; color: var(--ink-2); font-size: 14px; white-space: pre-wrap; }
+#exportText { width: 100%; min-height: 240px; font: 12px/1.5 var(--mono); border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 10px; }
+.toast { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 8px; font-size: 14px; box-shadow: var(--shadow); z-index: 20; }
+
+@media (max-width: 820px) {
+  .body { grid-template-columns: 1fr; }
+  nav.side { border-right: 0; border-bottom: 1px solid var(--line); max-height: 42vh; }
+  main { padding-inline: 16px; padding-block: 20px 60px; }
+  header.top { padding: 10px 16px; }
+  h1 { font-size: 22px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nav-item, .verdict, .btn { transition: background .12s, border-color .12s; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><b id="brandTitle"></b><span id="brandSub"></span></div>
+    <div class="plat" role="group" aria-label="Platform" id="platBar">
+    </div>
+    <div class="spacer"></div>
+    <div class="sync" id="sync"><i></i><span>Connecting…</span></div>
+    <button class="btn" id="copyAll">Copy results</button>
+  </header>
+  <div class="body">
+    <nav class="side" id="side" aria-label="Test cases"></nav>
+    <main id="main"><div class="wrap" id="view"></div></main>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// Generic verification runner. All plan content comes from PLAN, injected by
+// scripts/build.mjs. Results live in the artifact's `db` store (results/,
+// findings/) with localStorage as the offline fallback.
+const PLAN = /*__PLAN__*/null
+
+const PLATS = Object.fromEntries(PLAN.platforms.map(p => [p.id, p.label]))
+const PLAT_IDS = PLAN.platforms.map(p => p.id)
+const PLAT_BY_ID = Object.fromEntries(PLAN.platforms.map(p => [p.id, p]))
+const RISKS = PLAN.risks || {}
+const SECTIONS = PLAN.sections || {}
+const ITEMS = PLAN.items
+const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]))
+const ORDER = Object.fromEntries(PLAT_IDS.map(p => [p, (PLAN.order && PLAN.order[p]) || ITEMS.map(i => i.id)]))
+const PHASES = Object.fromEntries(PLAT_IDS.map(p => {
+  const given = PLAN.phases && PLAN.phases[p]
+  if (given) return [p, given.map(ph => [ph.name, ph.start])]
+  // Default: one phase per section, in the order sections first appear.
+  const seen = []
+  ORDER[p].map(id => BY_ID[id]).filter(i => i && i.plats[p]).forEach(i => {
+    if (!seen.find(s => s[2] === i.sec)) seen.push([SECTIONS[i.sec] || i.sec, i.id, i.sec])
+  })
+  return [p, seen.map(([n, s]) => [n, s])]
+}))
+const PRE_FINDINGS = PLAN.findings || []
+const short = p => PLAT_BY_ID[p].short || PLATS[p]
+
+const VERDICTS = {
+  check: [['pass', 'Pass', 'P'], ['fail', 'Fail', 'F'], ['blocked', 'Blocked', 'B'], ['skip', 'Skip', 'S']],
+  observe: [['recorded', 'Recorded', 'R'], ['finding', 'Finding', 'F'], ['blocked', 'Blocked', 'B'], ['skip', 'Skip', 'S']]
+}
+const LABEL = { pass: '✓ pass', fail: '✗ fail', blocked: 'blocked', skip: 'skipped', recorded: 'recorded', finding: '✗ finding' }
+
+// ---------- State ----------
+const LS_DATA = `vp-data-${PLAN.id}`
+const LS_UI = `vp-ui-${PLAN.id}`
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k) || 'null') } catch { return null } }
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+
+const data = Object.assign({ results: {}, findings: {} }, lsGet(LS_DATA) || {})
+const ui = Object.assign({ plat: PLAT_IDS[0], cur: {}, openOnly: false, view: 'item' }, lsGet(LS_UI) || {})
+if (!PLATS[ui.plat]) ui.plat = PLAT_IDS[0]
+const rkey = (plat, id) => `${plat}-${id}`
+const res = (plat, id) => data.results[rkey(plat, id)] || {}
+const status = (plat, id) => res(plat, id).status || ''
+const field = (plat, id, k) => (res(plat, id).fields || {})[k]
+
+let db = null
+const pending = new Map()
+const dirty = new Set()
+
+function persistLocal() { lsSet(LS_DATA, data) }
+function saveUi() { lsSet(LS_UI, ui) }
+
+function setSync(kind, text) {
+  const el = document.getElementById('sync')
+  el.className = 'sync ' + kind
+  el.querySelector('span').textContent = text
+}
+
+function queueWrite(coll, id, body) {
+  persistLocal()
+  if (!db) return
+  const path = `${coll}/${id}`
+  dirty.add(path)
+  const p = pending.get(path) || {}
+  clearTimeout(p.timer)
+  p.body = body
+  p.timer = setTimeout(() => flush(path), 600)
+  pending.set(path, p)
+}
+async function flush(path) {
+  const p = pending.get(path)
+  if (!p) return
+  if (p.inflight) { p.again = true; return }
+  p.inflight = true
+  setSync('ok', 'Saving…')
+  try {
+    if (p.body === null) await db.doc(path).delete()
+    else await db.doc(path).set(p.body)
+    setSync('ok', 'Saved · synced')
+  } catch (e) {
+    setSync('err', e && e.code === 'invalid_argument' ? 'Read-only: saved on this device' : 'Sync failed: saved on this device')
+  }
+  p.inflight = false
+  if (p.again) { p.again = false; return flush(path) }
+  pending.delete(path)
+  dirty.delete(path)
+}
+
+function updateResult(plat, id, patch) {
+  const k = rkey(plat, id)
+  const cur = Object.assign({ plat, id }, data.results[k] || {})
+  Object.assign(cur, patch, { at: new Date().toISOString() })
+  data.results[k] = cur
+  queueWrite('results', k, cur)
+}
+
+// ---------- Rendering helpers ----------
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const md = s => esc(s)
+  .replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+  .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+const onlyFor = (x, plat) => !x.only || (Array.isArray(x.only) ? x.only.includes(plat) : x.only === plat)
+const itemsFor = plat => ORDER[plat].map(id => BY_ID[id]).filter(i => i && i.plats[plat])
+const stepsFor = (item, plat) => (item.steps || []).filter(s => onlyFor(s, plat))
+const fieldsFor = (item, plat) => (item.fields || []).filter(f => onlyFor(f, plat))
+const expectFor = (item, plat) => (item.expect || []).map(e => typeof e === 'string' ? { t: e } : e).filter(e => onlyFor(e, plat))
+function toast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.hidden = false
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true }, 1800)
+}
+function dotClass(plat, item) {
+  const r = res(plat, item.id)
+  if (r.status) return r.status
+  if ((r.steps || []).length && stepsFor(item, plat).length) return 'partial'
+  return ''
+}
+
+function renderHeader() {
+  document.getElementById('brandTitle').textContent = PLAN.title
+  document.getElementById('brandSub').innerHTML = md(PLAN.subtitle || '')
+  const bar = document.getElementById('platBar')
+  if (PLAT_IDS.length < 2) { bar.hidden = true }
+  bar.innerHTML = PLAT_IDS.map(p => `<button id="plat-${p}" data-plat="${p}">${esc(PLATS[p])} <span class="count" id="count-${p}"></span></button>`).join('')
+}
+
+function renderCounts() {
+  for (const p of PLAT_IDS) {
+    const list = itemsFor(p).filter(i => i.plats[p] === 'req')
+    const done = list.filter(i => status(p, i.id)).length
+    document.getElementById('count-' + p).textContent = `${done}/${list.length}`
+    document.getElementById('plat-' + p).setAttribute('aria-pressed', String(ui.plat === p))
+  }
+}
+
+function renderSide() {
+  const plat = ui.plat
+  const list = itemsFor(plat)
+  const phases = PHASES[plat]
+  let html = `<div class="side-tools"><label><input type="checkbox" id="openOnly" ${ui.openOnly ? 'checked' : ''}> Hide finished</label></div>`
+  phases.forEach(([name, start], pi) => {
+    const s = list.findIndex(i => i.id === start)
+    if (s < 0) return
+    const next = pi + 1 < phases.length ? list.findIndex(i => i.id === phases[pi + 1][1]) : -1
+    const group = list.slice(s, next < 0 ? list.length : next)
+    const shown = ui.openOnly ? group.filter(i => !status(plat, i.id) || (ui.view === 'item' && ui.cur[plat] === i.id)) : group
+    const tally = { pass: 0, fail: 0, other: 0 }
+    group.forEach(i => { const st = status(plat, i.id); if (st === 'pass' || st === 'recorded') tally.pass++; else if (st === 'fail' || st === 'finding') tally.fail++; else if (st) tally.other++ })
+    const n = group.length || 1
+    html += `<div class="sec"><div class="sec-h"><span>${esc(name)}</span><span class="mono">${tally.pass + tally.fail + tally.other}/${group.length}</span></div>
+      <div class="bar"><span style="width:${tally.pass / n * 100}%;background:var(--pass)"></span><span style="width:${tally.fail / n * 100}%;background:var(--fail)"></span><span style="width:${tally.other / n * 100}%;background:var(--ink-3)"></span></div>`
+    shown.forEach(i => {
+      const cur = ui.view === 'item' && ui.cur[plat] === i.id
+      html += `<button class="nav-item" data-go="${i.id}" aria-current="${cur}"><span class="dot ${dotClass(plat, i)}"></span><span class="id">${esc(i.id)}</span><span class="t">${esc(i.title)}</span>${i.plats[plat] === 'opt' ? '<span class="opt">opt</span>' : '<span></span>'}</button>`
+    })
+    html += '</div>'
+  })
+  html += `<div class="nav-summary"><button class="nav-item" data-go="__summary" aria-current="${ui.view === 'summary'}"><span class="dot ${exitReady() ? 'pass' : ''}"></span><span class="id">∑</span><span class="t">Summary, findings, export</span><span></span></button></div>`
+  document.getElementById('side').innerHTML = html
+}
+
+function renderItem() {
+  const plat = ui.plat
+  const list = itemsFor(plat)
+  let idx = list.findIndex(i => i.id === ui.cur[plat])
+  if (idx < 0) { idx = 0; ui.cur[plat] = list[0].id }
+  const item = list[idx]
+  const r = res(plat, item.id)
+  const steps = stepsFor(item, plat)
+  const fields = fieldsFor(item, plat)
+  const expect = expectFor(item, plat)
+  const doneSteps = new Set(r.steps || [])
+  const phase = [...PHASES[plat]].reverse().find(([, s]) => { const k = list.findIndex(i => i.id === s); return k >= 0 && k <= idx })
+  const needNotes = ['fail', 'finding', 'blocked'].includes(r.status) && !(r.notes || '').trim()
+  const log = PLAT_BY_ID[plat].log
+
+  let h = `<div class="crumbs"><span class="pos">${idx + 1} / ${list.length}</span><span>${esc(PLATS[plat])} · ${esc(phase ? phase[0] : '')}</span>${SECTIONS[item.sec] ? `<span>Plan section ${esc(item.sec)}: ${esc(SECTIONS[item.sec])}</span>` : ''}</div>
+    <div><h1><span class="cid">${esc(item.id)}</span>${esc(item.title)}</h1></div>
+    <div class="chips">
+      <span class="chip ${item.plats[plat] === 'req' ? 'req' : ''}">${item.plats[plat] === 'req' ? 'Required' : 'Optional'}${PLAT_IDS.length > 1 ? ' on ' + esc(PLATS[plat]) : ''}</span>
+      <span class="chip type-${item.type}">${item.type === 'observe' ? 'Record observations' : 'Pass / fail'}</span>
+      ${item.prior && item.prior[plat] ? `<span class="chip prior">Earlier: ${esc(item.prior[plat])}</span>` : ''}
+      ${(item.risks || []).map(k => `<span class="chip" title="${esc(RISKS[k])}">${esc(k)}</span>`).join('')}
+    </div>`
+  if (item.notes && item.notes[plat]) h += `<div class="note">${md(item.notes[plat])}</div>`
+  if (item.why || (item.risks || []).length) {
+    h += `<div class="prose">${item.why ? `<p>${md(item.why)}</p>` : ''}${(item.risks || []).length ? `<ul class="risk-list">${item.risks.map(k => `<li><b>${esc(k)}</b>${md(RISKS[k])}</li>`).join('')}</ul>` : ''}</div>`
+  }
+  if (steps.length) {
+    h += `<section class="panel"><h2>Steps</h2><ol class="steps">${steps.map((s, i) => {
+      const si = item.steps.indexOf(s)
+      return `<li class="${doneSteps.has(si) ? 'done' : ''}"><input type="checkbox" id="st-${item.id}-${si}" data-step="${si}" ${doneSteps.has(si) ? 'checked' : ''}><div class="txt"><label for="st-${item.id}-${si}"><span class="step-n">${i + 1}</span>${md(s.t)}</label>${s.cmd ? `<div class="cmd"><pre>${esc(s.cmd)}</pre><button class="btn small" data-copy="${esc(s.cmd)}">Copy</button></div>` : ''}</div></li>`
+    }).join('')}</ol>${log && /\blogs?\b|\.log\b/i.test(JSON.stringify(steps.map(s => s.t))) ? `<p class="stamp" style="margin:10px 0 0">Log: ${md(log)}</p>` : ''}</section>`
+  }
+  if (expect.length) h += `<section class="panel"><h2>Expected</h2><ul class="expect">${expect.map(e => `<li>${md(e.t)}</li>`).join('')}</ul></section>`
+
+  h += `<section class="panel result"><h2>Result</h2>
+    <div class="verdicts" role="group" aria-label="Result">${VERDICTS[item.type].map(([v, l, k]) => `<button class="verdict v-${v}" data-verdict="${v}" aria-pressed="${r.status === v}">${l} <kbd>${k}</kbd></button>`).join('')}</div>
+    ${fields.length ? `<div class="fields-grid">${fields.map(f => fieldHtml(item, f, r)).join('')}</div>` : ''}
+    <div class="field ${needNotes ? 'need' : ''}"><label for="notes-${item.id}">Notes${needNotes ? ': say what happened' : ''}</label>
+      <textarea id="notes-${item.id}" data-notes placeholder="${item.type === 'observe' ? 'What you saw, including anything surprising' : 'How it failed, or anything worth remembering'}">${esc(r.notes || '')}</textarea></div>
+    <div class="row">
+      ${r.status === 'fail' || r.status === 'finding' ? `<button class="btn" data-log-finding>Log as finding</button>` : ''}
+      ${r.status || r.notes || (r.steps || []).length ? `<button class="btn ghost small" data-clear>Clear this result</button>` : ''}
+      <span class="stamp">${r.at ? 'Last saved ' + new Date(r.at).toLocaleString() : ''}</span>
+    </div>
+  </section>
+  <div class="pager">
+    <button class="btn" data-nav="-1" ${idx === 0 ? 'disabled' : ''}>← Previous</button>
+    <button class="btn primary" data-nav="1">${idx === list.length - 1 ? 'Summary →' : 'Next →'}</button>
+  </div>`
+  document.getElementById('view').innerHTML = h
+}
+
+function fieldHtml(item, f, r) {
+  const v = (r.fields || {})[f.k] ?? ''
+  const id = `f-${item.id}-${f.k}`
+  const cls = f.mono ? 'mono' : ''
+  let ctl
+  if (f.kind === 'area') ctl = `<textarea id="${id}" class="${cls}" data-field="${f.k}" placeholder="${esc(f.ph || '')}">${esc(v)}</textarea>`
+  else if (f.kind === 'select') ctl = `<select id="${id}" data-field="${f.k}">${['', ...f.opts.filter(o => o !== '')].map(o => `<option value="${esc(o)}" ${o === v ? 'selected' : ''}>${esc(o || '—')}</option>`).join('')}</select>`
+  else ctl = `<input id="${id}" class="${cls}" data-field="${f.k}" value="${esc(v)}" placeholder="${esc(f.ph || '')}">`
+  return `<div class="field" style="${f.kind === 'area' ? 'grid-column:1/-1' : ''}"><label for="${id}">${esc(f.label)}</label>${ctl}</div>`
+}
+
+// ---------- Exit criteria ----------
+// Declarative rules from PLAN.exit, evaluated against results.
+function evalCriterion(c) {
+  const ref = r => `${PLAT_IDS.length > 1 ? short(r.plat) + ' ' : ''}${r.id}`
+  switch (c.kind) {
+    case 'allRequired': {
+      const missing = []
+      for (const p of PLAT_IDS) for (const i of itemsFor(p)) if (i.plats[p] === 'req' && !status(p, i.id)) missing.push(ref({ plat: p, id: i.id }))
+      return { ok: !missing.length, d: missing.length ? `${missing.length} open: ${missing.slice(0, 14).join(', ')}${missing.length > 14 ? '…' : ''}` : 'All required cases have a result.' }
+    }
+    case 'failuresResolved': {
+      const fails = []
+      for (const p of PLAT_IDS) for (const i of itemsFor(p)) if (['fail', 'finding', 'blocked'].includes(status(p, i.id))) fails.push(ref({ plat: p, id: i.id }))
+      return { ok: null, d: fails.length ? `${fails.length} to resolve: ${fails.join(', ')}` : 'No failures recorded.' }
+    }
+    case 'pass': {
+      const bad = c.items.filter(r => !['pass', 'recorded'].includes(status(r.plat, r.id)))
+      return { ok: !bad.length, d: bad.length ? `Not passed yet: ${bad.map(ref).join(', ')}` : 'Passed.' }
+    }
+    case 'fields': {
+      const parts = c.fields.map(f => {
+        const v = field(f.plat, f.id, f.field)
+        const ok = !!v && !(f.notIn || []).includes(v)
+        return { ok, t: `${f.label || ref(f)}: ${v || 'not recorded'}` }
+      })
+      return { ok: parts.every(x => x.ok), d: parts.map(x => esc(x.t)).join(' · ') }
+    }
+    default:
+      return { ok: null, d: c.detail ? md(c.detail) : 'Check by hand.' }
+  }
+}
+function exitChecks() { return (PLAN.exit || []).map(c => Object.assign({ t: c.text }, evalCriterion(c))) }
+function exitReady() { const x = exitChecks(); return x.length > 0 && x.every(c => c.ok !== false) }
+
+// ---------- Summary ----------
+function findingsList() {
+  return Object.entries(data.findings).map(([id, f]) => Object.assign({ id }, f)).sort((a, b) => a.n - b.n)
+}
+
+function renderSummary() {
+  const rows = p => itemsFor(p).map(i => {
+    const st = status(p, i.id)
+    return `<tr><td class="n">${esc(i.id)}</td><td>${esc(i.title)}${i.plats[p] === 'opt' ? ' <span class="chip">opt</span>' : ''}</td><td><span class="dot ${st}" style="display:inline-block;vertical-align:-1px;margin-right:6px"></span>${esc(LABEL[st] || '')}</td></tr>`
+  }).join('')
+  const checks = exitChecks()
+  let h = `<div><h1>Summary</h1></div>
+    ${checks.length ? `<section class="panel"><h2>Exit criteria</h2><ul class="crit">${checks.map(c => `<li><span class="${c.ok === false ? 'no' : 'ok'}">${c.ok === null ? '•' : c.ok ? '✓' : '✗'}</span><div>${md(c.t)}<small>${c.d}</small></div></li>`).join('')}</ul></section>` : ''}
+    <section class="panel"><h2>Export</h2>
+      <p class="prose" style="margin:0 0 10px">Copy this and paste it back into Claude Code, or ask Claude to read the results straight from this page.</p>
+      <div class="row" style="margin-bottom:10px"><button class="btn primary" id="copyExport">Copy to clipboard</button>${PLAT_IDS.length > 1 ? PLAT_IDS.map(p => `<button class="btn" data-copy-plat="${p}">${esc(PLATS[p])} only</button>`).join('') : ''}</div>
+      <textarea id="exportText" readonly aria-label="Exported results">${esc(buildExport())}</textarea></section>
+    <section class="panel"><h2>Findings</h2><div>
+      ${PRE_FINDINGS.map(f => `<div class="finding"><span class="num">${f.n}</span><div><b>${esc(f.title)}</b> ${f.ref ? `<span class="chip">${esc(f.ref)}</span>` : ''}<p>${esc(f.body)}</p></div><span></span></div>`).join('')}
+      ${findingsList().map(f => `<div class="finding"><span class="num">${f.n}</span><div><b>${esc(f.title)}</b> ${f.ref ? `<span class="chip">${esc((f.plat && PLATS[f.plat] && PLAT_IDS.length > 1 ? short(f.plat) + ' ' : '') + f.ref)}</span>` : ''}<p>${esc(f.body)}</p></div><button class="btn ghost small" data-del-finding="${f.id}">Delete</button></div>`).join('')}
+      </div>
+      <form id="findingForm" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="fields-grid">
+          <div class="field"><label for="nf-title">New finding</label><input id="nf-title" placeholder="One line: what's wrong"></div>
+          <div class="field"><label for="nf-ref">Case</label><input id="nf-ref" class="mono" placeholder="e.g. E5"></div>
+        </div>
+        <div class="field"><label for="nf-body">Details</label><textarea id="nf-body" placeholder="What happened, evidence (log lines), what it affects"></textarea></div>
+        <div><button class="btn" type="submit">Add finding</button></div>
+      </form>
+    </section>
+    <div class="fields-grid">
+      ${PLAT_IDS.map(p => `<section class="panel"><h2>${esc(PLATS[p])}</h2><div class="scroll"><table class="sum"><tbody>${rows(p)}</tbody></table></div></section>`).join('')}
+    </div>`
+  document.getElementById('view').innerHTML = h
+}
+
+const unhtml = s => String(s).replace(/<[^>]+>/g, '').replace(/&(amp|lt|gt|quot|#39);/g, m => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }[m]))
+
+function buildExport(only) {
+  const cell = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>')
+  let out = `# ${PLAN.title}: results\n\nPlan \`${PLAN.id}\`. Exported ${new Date().toISOString().slice(0, 16).replace('T', ' ')}\n`
+  for (const p of only ? [only] : PLAT_IDS) {
+    const list = itemsFor(p)
+    const req = list.filter(i => i.plats[p] === 'req')
+    const meta = (PLAT_BY_ID[p].meta || []).map(m => `${m.label}: ${field(p, m.item, m.field) || '?'}`)
+    out += `\n## ${PLATS[p]}\n\n${meta.length ? meta.join('. ') + '. ' : ''}Required cases with a result: ${req.filter(i => status(p, i.id)).length}/${req.length}.\n`
+    out += `\n| ID | Case | Req | Result | Recorded | Notes |\n|---|---|---|---|---|---|\n`
+    for (const i of list) {
+      const r = res(p, i.id)
+      const f = fieldsFor(i, p).filter(fd => (r.fields || {})[fd.k]).map(fd => `${fd.label}: ${r.fields[fd.k]}`).join('; ')
+      const st = r.status ? LABEL[r.status] : ((r.steps || []).length ? 'in progress' : '')
+      out += `| ${i.id} | ${cell(i.title)} | ${i.plats[p] === 'req' ? '●' : '○'} | ${st}${r.finding ? ` → finding ${r.finding}` : ''} | ${cell(f)} | ${cell(r.notes)} |\n`
+    }
+  }
+  const fs = findingsList()
+  if (fs.length) {
+    out += `\n## New findings\n\n`
+    fs.forEach(f => { out += `${f.n}. **${f.title}**${f.ref ? ` (${f.plat && PLAT_IDS.length > 1 ? short(f.plat) + ' ' : ''}${f.ref})` : ''}. ${String(f.body || '').replace(/\n+/g, ' ')}\n` })
+  }
+  const checks = exitChecks()
+  if (!only && checks.length) {
+    out += `\n## Exit criteria\n\n`
+    checks.forEach(c => { out += `- [${c.ok ? 'x' : ' '}] ${c.t}: ${unhtml(c.d)}\n` })
+  }
+  return out
+}
+
+async function copyText(text, el) {
+  try { await navigator.clipboard.writeText(text); toast('Copied') }
+  catch {
+    const ta = el || document.getElementById('exportText')
+    if (ta) { ta.value = text; ta.focus(); ta.select(); toast('Selected. Press Ctrl/⌘+C') }
+    else toast('Copy blocked. Open the summary and copy from the text box')
+  }
+}
+
+function addFinding({ title, ref, plat, body }) {
+  const n = Math.max(0, ...PRE_FINDINGS.map(f => f.n), ...findingsList().map(f => f.n)) + 1
+  const id = 'f' + Date.now().toString(36)
+  data.findings[id] = { n, title, ref, plat, body, at: new Date().toISOString() }
+  queueWrite('findings', id, data.findings[id])
+  return n
+}
+
+// ---------- Render + events ----------
+function render() {
+  renderCounts(); renderSide()
+  if (ui.view === 'summary') renderSummary(); else renderItem()
+}
+function renderQuiet() { renderCounts(); renderSide() }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button')
+  if (!t) return
+  if (t.dataset.plat) { ui.plat = t.dataset.plat; saveUi(); render(); return }
+  if (t.dataset.go) {
+    if (t.dataset.go === '__summary') ui.view = 'summary'
+    else { ui.view = 'item'; ui.cur[ui.plat] = t.dataset.go }
+    saveUi(); render(); document.getElementById('main').scrollTop = 0; return
+  }
+  if (t.dataset.copy !== undefined) { copyText(t.dataset.copy); return }
+  if (t.dataset.copyPlat) { copyText(buildExport(t.dataset.copyPlat)); return }
+  if (t.dataset.nav) { move(+t.dataset.nav); return }
+  if (t.dataset.verdict) { setVerdict(t.dataset.verdict); return }
+  if (t.hasAttribute('data-clear')) {
+    if (t.dataset.armed) {
+      const k = rkey(ui.plat, ui.cur[ui.plat])
+      delete data.results[k]; queueWrite('results', k, null); render()
+    } else { t.dataset.armed = '1'; t.textContent = 'Click again to clear' }
+    return
+  }
+  if (t.hasAttribute('data-log-finding')) {
+    const id = ui.cur[ui.plat], r = res(ui.plat, id)
+    const n = addFinding({ title: `${BY_ID[id].title}: ${(r.notes || 'failed').split('\n')[0].slice(0, 90)}`, ref: id, plat: ui.plat, body: r.notes || '' })
+    updateResult(ui.plat, id, { finding: n })
+    toast(`Logged as finding ${n}`); render(); return
+  }
+  if (t.dataset.delFinding) {
+    if (t.dataset.armed) { delete data.findings[t.dataset.delFinding]; queueWrite('findings', t.dataset.delFinding, null); render() }
+    else { t.dataset.armed = '1'; t.textContent = 'Confirm delete' }
+    return
+  }
+  if (t.id === 'copyAll' || t.id === 'copyExport') { copyText(buildExport(), document.getElementById('exportText')); return }
+})
+
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'findingForm') return
+  e.preventDefault()
+  const title = document.getElementById('nf-title').value.trim()
+  if (!title) { document.getElementById('nf-title').focus(); return }
+  const ref = document.getElementById('nf-ref').value.trim().toUpperCase()
+  addFinding({ title, ref, plat: BY_ID[ref] ? ui.plat : '', body: document.getElementById('nf-body').value.trim() })
+  render()
+})
+
+document.addEventListener('change', e => {
+  const t = e.target
+  if (t.id === 'openOnly') { ui.openOnly = t.checked; saveUi(); renderSide(); return }
+  if (ui.view !== 'item') return
+  const id = ui.cur[ui.plat]
+  if (t.dataset.step !== undefined) {
+    const s = new Set(res(ui.plat, id).steps || [])
+    t.checked ? s.add(+t.dataset.step) : s.delete(+t.dataset.step)
+    updateResult(ui.plat, id, { steps: [...s].sort((a, b) => a - b) })
+    t.closest('li').classList.toggle('done', t.checked)
+    renderQuiet(); return
+  }
+  if (t.tagName === 'SELECT' && t.dataset.field) onField(t)
+})
+
+document.addEventListener('input', e => {
+  const t = e.target
+  if (ui.view !== 'item') return
+  if (t.dataset.field !== undefined && t.tagName !== 'SELECT') onField(t)
+  else if (t.hasAttribute('data-notes')) {
+    updateResult(ui.plat, ui.cur[ui.plat], { notes: t.value })
+    t.closest('.field').classList.remove('need')
+  }
+})
+
+function onField(t) {
+  const id = ui.cur[ui.plat]
+  const fields = Object.assign({}, res(ui.plat, id).fields, { [t.dataset.field]: t.value })
+  updateResult(ui.plat, id, { fields })
+}
+
+function setVerdict(v) {
+  const id = ui.cur[ui.plat]
+  const cur = status(ui.plat, id)
+  updateResult(ui.plat, id, { status: cur === v ? '' : v })
+  render()
+  if (['fail', 'finding', 'blocked'].includes(v) && cur !== v) {
+    const n = document.querySelector('[data-notes]')
+    if (n && !n.value.trim()) n.focus()
+  }
+}
+
+function move(d) {
+  if (ui.view === 'summary') { if (d < 0) { ui.view = 'item'; saveUi(); render() } return }
+  const list = itemsFor(ui.plat)
+  const idx = list.findIndex(i => i.id === ui.cur[ui.plat]) + d
+  if (idx >= list.length) ui.view = 'summary'
+  else if (idx >= 0) ui.cur[ui.plat] = list[idx].id
+  saveUi(); render(); document.getElementById('main').scrollTop = 0
+}
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    if (e.key === 'Escape') document.activeElement.blur()
+    return
+  }
+  if (e.key === 'ArrowRight' || e.key === 'j') move(1)
+  else if (e.key === 'ArrowLeft' || e.key === 'k') move(-1)
+  else if (ui.view === 'item') {
+    const item = BY_ID[ui.cur[ui.plat]]
+    const hit = VERDICTS[item.type].find(([, , k]) => k.toLowerCase() === e.key.toLowerCase())
+    if (hit) setVerdict(hit[0])
+  }
+})
+
+// ---------- Shared store ----------
+function applyRemote(coll, snap) {
+  let changed = false
+  const target = coll === 'results' ? data.results : data.findings
+  snap.docs.forEach(d => {
+    if (dirty.has(`${coll}/${d.id}`)) return
+    const body = d.data()
+    const local = target[d.id]
+    if (local && local.at && body.at && local.at > body.at) return
+    if (!local || JSON.stringify(local) !== JSON.stringify(body)) {
+      target[d.id] = JSON.parse(JSON.stringify(body)); changed = true
+    }
+  })
+  return changed
+}
+
+async function connect() {
+  setSync('', 'Connecting…')
+  try { db = await window.claude?.use?.('db') } catch { db = null }
+  if (!db) { setSync('local', 'Saved on this device only'); return }
+  const first = { results: true, findings: true }
+  for (const coll of ['results', 'findings']) {
+    db.collection(coll).onSnapshot(snap => {
+      const changed = applyRemote(coll, snap)
+      if (first[coll]) {
+        first[coll] = false
+        // Push anything this browser recorded before the store was reachable.
+        const target = coll === 'results' ? data.results : data.findings
+        for (const [id, body] of Object.entries(target)) {
+          const remote = snap.docs.find(d => d.id === id)
+          const rb = remote && remote.data()
+          if (!rb || (body.at && rb.at && body.at > rb.at)) queueWrite(coll, id, body)
+        }
+      }
+      if (changed) {
+        persistLocal()
+        const a = document.activeElement
+        if (ui.view === 'item' && a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) renderQuiet()
+        else render()
+      }
+      setSync('ok', 'Synced across devices')
+    }, err => setSync('err', `Sync stopped (${err.code}): saved on this device`))
+  }
+}
+
+renderHeader()
+render()
+connect()
+</script>

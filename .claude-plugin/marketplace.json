@@ -1,0 +1,15 @@
+{
+  "name": "ai-skills",
+  "owner": { "name": "Alex Miller" },
+  "metadata": {
+    "description": "Claude Code skills for shipping OpenSpec changes and manual verification."
+  },
+  "plugins": [
+    {
+      "name": "openspec-ship",
+      "source": "./plugins/openspec-ship",
+      "description": "Ship an OpenSpec change from proposal to merged PR, with optional design passes and an interactive manual test runner.",
+      "category": "development"
+    }
+  ]
+}

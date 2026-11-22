@@ -1,0 +1,98 @@
+{
+  "id": "settings-export",
+  "title": "Settings export: verification plan",
+  "pageTitle": "Settings Export Verification",
+  "subtitle": "Manual verification run for `settings-export`",
+  "target": { "kind": "openspec", "ref": "settings-export" },
+  "intro": "Manual pass for exporting and importing app settings as a JSON file. Results go in the **Status** columns and the run log. Findings that change a decision go back to the proposal.",
+  "scope": "Before merge: export writes a complete, readable file on both platforms, import restores it, and a failed write never leaves a half-written file behind.\n\nOut of scope: the settings schema itself (covered by unit specs) and cloud sync.",
+  "covered": [
+    { "layer": "Unit", "what": "Serialise/parse round trip, schema version check", "where": "`spec/main/settingsExport.spec.js`" },
+    { "layer": "E2E (dev)", "what": "Export button writes a file in a temp dir", "where": "`spec/e2e/settings.spec.js`" }
+  ],
+  "coveredGap": "Nothing exercises the real OS save dialog, a destination another process holds open, or the packaged build's file paths.",
+  "setup": "Build the packaged app on each platform from the branch head. Keep a copy of the settings file so the destructive case can be undone.",
+  "platforms": [
+    {
+      "id": "linux", "label": "Linux", "short": "Linux",
+      "log": "Help → **Open logs folder** (`~/.config/MyApp/logs/`)",
+      "meta": [{ "label": "Commit", "item": "SL1", "field": "commit" }]
+    },
+    {
+      "id": "mac", "label": "macOS", "short": "Mac",
+      "log": "Help → **Open logs folder** (`~/Library/Logs/MyApp/`)",
+      "meta": [{ "label": "Commit", "item": "SM1", "field": "commit" }]
+    }
+  ],
+  "risks": {
+    "R1": "The native save dialog returns a path the export code doesn't expect (sandboxed or bookmarked path on macOS)",
+    "R2": "Overwriting a file another process holds open fails, and the error isn't shown",
+    "R3": "Import of a file from an older version silently drops settings"
+  },
+  "sections": { "S": "Setup", "A": "Export", "B": "Import" },
+  "items": [
+    {
+      "id": "SL1", "sec": "S", "title": "Build the packaged app (Linux)", "type": "check",
+      "plats": { "linux": "req" }, "risks": ["R1"],
+      "why": "Packaged paths differ from dev; the dialog and file writes must be tested on the real build.",
+      "steps": [{ "t": "Build and launch the packaged app.", "cmd": "npm run package\n./dist/linux-unpacked/myapp" }],
+      "expect": ["The app opens to the home screen"],
+      "fields": [{ "k": "commit", "label": "Commit", "mono": true, "ph": "git rev-parse --short HEAD" }]
+    },
+    {
+      "id": "SM1", "sec": "S", "title": "Build the packaged app (macOS)", "type": "check",
+      "plats": { "mac": "req" }, "risks": ["R1"],
+      "why": "Same as SL1, on the Mac checkout.",
+      "steps": [
+        { "t": "Update the checkout.", "cmd": "git fetch origin && git switch settings-export && git pull\nnpm ci" },
+        { "t": "Build, then open the app from Finder.", "cmd": "npm run package:mac" }
+      ],
+      "expect": ["The app opens to the home screen"],
+      "fields": [{ "k": "commit", "label": "Commit", "mono": true, "ph": "git rev-parse --short HEAD" }]
+    },
+    {
+      "id": "A1", "sec": "A", "title": "Export through the save dialog", "type": "check",
+      "plats": { "linux": "req", "mac": "req" }, "risks": ["R1"],
+      "why": "The OS dialog is the only path users take, and no spec drives it.",
+      "steps": [
+        { "t": "Settings → **Export settings…** → save as `settings.json` on the Desktop." },
+        { "t": "Inspect the file.", "cmd": "jq 'keys' ~/Desktop/settings.json" }
+      ],
+      "expect": ["A toast says the settings were exported", "The file lists `version` and `preferences`"]
+    },
+    {
+      "id": "A2", "sec": "A", "title": "Overwrite a file that's open elsewhere", "type": "check",
+      "plats": { "linux": "opt", "mac": "req" }, "risks": ["R2"],
+      "why": "Overwrite behaviour on an open file differs by OS; a silent failure loses the user's export.",
+      "steps": [
+        { "t": "Open `~/Desktop/settings.json` in a text editor and leave it open." },
+        { "t": "Export again to the same path and confirm the overwrite." }
+      ],
+      "expect": ["Either the file is replaced, or an error names the file", "No `settings.json.tmp` is left on the Desktop"]
+    },
+    {
+      "id": "B1", "sec": "B", "title": "Import an export from the previous release", "type": "observe",
+      "plats": { "linux": "req", "mac": "opt" }, "risks": ["R3"],
+      "why": "Version migration is the riskiest part of import; this records what survives.",
+      "steps": [
+        { "t": "Settings → **Import settings…** → `spec/fixtures/settings-v1.json`." },
+        { "t": "Compare the preferences screen with the fixture's values." }
+      ],
+      "fields": [
+        { "k": "missing", "label": "Settings not restored", "kind": "area" },
+        { "k": "decision", "label": "Decision", "kind": "select", "opts": ["Accept", "Fix first", "Undecided"] }
+      ]
+    }
+  ],
+  "order": {
+    "linux": ["SL1", "A1", "A2", "B1"],
+    "mac": ["SM1", "A1", "A2", "B1"]
+  },
+  "exit": [
+    { "text": "Every required case has a status", "kind": "allRequired" },
+    { "text": "Every ✗ is fixed or deferred with a reason", "kind": "failuresResolved" },
+    { "text": "B1 decided", "kind": "fields", "fields": [{ "plat": "linux", "id": "B1", "field": "decision", "label": "B1", "notIn": ["Undecided"] }] }
+  ],
+  "runLog": [],
+  "findings": []
+}
