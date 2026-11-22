@@ -13,7 +13,7 @@ orchestrator's context small, so keep it in.
 ## Contents
 
 - [A. Apply agent](#a-apply-agent)
-- [B. Simplify agent](#b-simplify-agent)
+- [B. Refactor agent](#b-refactor-agent)
 - [C. Fix agent](#c-fix-agent)
 - [D. Review agent](#d-review-agent)
 - [E. Test-plan agent](#e-test-plan-agent)
@@ -23,7 +23,7 @@ orchestrator's context small, so keep it in.
 - [G2. Critique detector agent](#g2-critique-detector-agent)
 - [H. Overdrive agent](#h-overdrive-agent)
 - [I. Polish agent](#i-polish-agent)
-- [Rubric: simplify findings](#rubric-simplify-findings)
+- [Rubric: refactor findings](#rubric-refactor-findings)
 - [Rubric: critique findings](#rubric-critique-findings)
 - [Rubric: design findings](#rubric-design-findings)
 - [Rubric: review findings](#rubric-review-findings)
@@ -51,7 +51,7 @@ of guessing. You may be resumed with an answer.
 When the tasks are done, run `<lint>` and the unit specs covering what you
 touched (<if test_paths: `<test_paths>`; otherwise: `<test>`>), and fix any failures.
 
-Report (≤250 words):
+Report (≤400 words):
 STATUS: DONE | BLOCKED
 TASKS: <n>/<m> checked
 FILES: <changed paths, grouped by area>
@@ -59,43 +59,87 @@ SUMMARY: <one line, what the change does>
 TESTS: <specs added or changed; result of the runs>
 BLOCKED ON (if blocked): <the question, the options you see, and which you'd pick>
 NOTES: <anything the orchestrator must know: artifact edits, deviations from the proposal>
+LEARNINGS (≤150 words, bullets): what building this taught you that the proposal
+  didn't know. Where you deviated from design.md and why; what turned out harder or
+  different than planned; workarounds you left in; approaches you tried and abandoned
+  (and whether any trace of them remains); and "if I started again I'd …". A later
+  agent uses this to refactor with hindsight, so be candid and specific (file or
+  symbol names). "None" is fine if it really went to plan.
 ```
 
-## B. Simplify agent
+## B. Refactor agent
 
-`subagent_type: "code-simplifier:code-simplifier"` if available, else `"general-purpose"`.
+`subagent_type: "general-purpose"`
 
 ```
 Review, without editing, the OpenSpec change `<change>` on branch `<change>` in
-<repo>. Don't edit files and don't commit; report findings only.
+<repo>, with hindsight. Don't edit files and don't commit; report findings only.
 Another agent applies the ones that are accepted.
 
-Scope: the diff (`git diff <base>...HEAD`) plus the code around it, meaning the
-functions and modules the diff touches, their direct callers, and sibling modules
-doing the same job.
+The question is: knowing what we know now that it's built, what would we do
+differently? Building a feature always teaches something the proposal didn't know.
+Your job is to find where the code still carries the shape of what we thought
+before we learned it, and say what to restructure so the next person to touch this
+code has an easier time.
+
+Read first:
+- openspec/changes/<change>/proposal.md, design.md and tasks.md: what was planned.
+- `git log --oneline <base>..HEAD`: how it was actually built.
+- What the build taught us (from the agent that implemented it; take it seriously,
+  it's the main input):
+<learnings, or: "No notes from the build. Infer them: compare design.md with what
+was built, and look for reworked areas in the commits and the diff.">
+<if earlier review steps ran: Already done on this branch: <critique/overdrive tallies>.
+Don't re-raise those.>
+
+Scope: the diff (`git diff <base>...HEAD`), specs included, plus the code around
+it: the functions and modules the diff touches, their direct callers, and sibling
+modules doing the same job.
 
 Project rules:
 <rules>
 
-Look for changes that matter for maintainability, readability or scalability:
-duplicated logic (including logic that existing shared helpers already provide),
-the wrong abstraction or a leaky one, misleading names on new public surfaces, dead
-code the change left behind, needless coupling across process, module or service
-boundaries, and work that grows badly with the size of the data the project
-handles. Skip formatting, comment wording and taste. The formatter and linter own
-those.
+The project's conventions win: the rules above, CLAUDE.md or AGENTS.md, and the
+patterns in sibling modules. Don't import a generic style the project doesn't use.
+Every finding must name a concrete cost in this codebase ("the next export format
+means editing 4 files", "these two copies already disagree on X"). A pattern name
+("violates SRP") is fine as shorthand, never as the reason.
 
-Report (≤500 words), numbered findings, most impactful first:
-<n>. [HIGH|MEDIUM|LOW] <file>:<line>: <what to change, concretely>
-    Why: <the maintainability/readability/scalability effect, one line>
+Work through these in order:
+1. Hindsight structure: given what the build taught us, would the module
+   boundaries, the data shape, or where logic lives be different? (STRUCTURAL)
+2. Duplication and reuse: logic repeated within the diff, or that an existing
+   helper already provides.
+3. Abstraction and altitude: the wrong level, a leaky abstraction, a premature
+   one, or a missing one where the diff now has 3+ near-copies.
+4. Leftovers from the build: dead code, abandoned approaches, scaffolding,
+   temporary flags, compatibility shims, TODOs the change made obsolete.
+5. Readability: misleading names on new surfaces, branching that hides the rule
+   being applied.
+6. Coupling and boundaries across process, module or service lines.
+7. Scale: work that grows badly with the size of the data the project handles.
+Tests get the same angles (copied setup, fixtures that should be shared, tests
+pinned to details the learnings say will change); a test finding is always CODE.
+
+Skip formatting, comment wording, renames that are down to taste, and speculative
+generality. The formatter and linter own style. If a better *approach* entirely
+(another algorithm, library or design) comes to mind, don't make it a finding: put
+it in the approach note.
+
+Report (≤700 words), numbered findings, most impactful first:
+<n>. [STRUCTURAL|CODE] [HIGH|MED|LOW] <file>:<line>
+    What: <the change to make, concretely>
+    Cost today: <the concrete cost of leaving it>
+    Learned from: <the learning or commit that prompted it, or "fresh read">
     In diff: yes | no (surrounding code)
     Size: S | M | L
-If there's nothing worth changing, say so in one line.
+Approach note: <one line, or "none">
+If there's nothing worth changing, say so in one line (plus the approach note).
 ```
 
 ## C. Fix agent
 
-`subagent_type: "general-purpose"`. Used for accepted critique findings, accepted simplify
+`subagent_type: "general-purpose"`. Used for accepted critique findings, accepted refactor
 findings, accepted design findings, accepted review findings, full-suite failures and
 manual-test failures. Give it only what was accepted.
 
@@ -458,27 +502,34 @@ means the bar slipped.
 
 ---
 
-## Rubric: simplify findings
+## Rubric: refactor findings
 
-Accept a finding when doing it now makes the code **meaningfully** easier to change,
-read or scale, and it's in proportion to the change:
+The bar: **with what we know now, would we have written it this way, and does the
+change pay for itself the next time someone touches this code?** Most hindsight
+refactors are things no reviewer would block a PR over, which is exactly why they
+never get done otherwise. So the bar is lower than "blocking", and the Drop list is
+what keeps it from becoming churn.
 
-- **Accept**: it removes duplication, especially with an existing helper. It fixes
-  an abstraction or name that would mislead the next reader of a new public surface.
-  It deletes dead code the change left behind. It cuts coupling across process or
-  module boundaries. It removes work that grows with data size on a hot path. It
+- **Accept**: it would make the next change to this code easier or safer, and it's
+  in proportion to the change. Typical: it reshapes structure the learnings showed
+  was wrong; removes duplication, especially with an existing helper; fixes an
+  abstraction or name that would mislead the next reader; deletes leftovers from the
+  build (dead code, abandoned approaches, scaffolding); cuts coupling across process
+  or module boundaries; removes work that grows with data size on a hot path;
   collapses branching that hides the rule being applied.
 - **Follow-up, not now**: a worthwhile change to code the diff doesn't touch, or one
   that's L-sized compared with the change. List it in the PR body; the user decides
-  whether it becomes an issue.
+  whether it becomes an issue. The agent's approach note goes here too, untriaged.
 - **Drop**: formatting, import order, renaming that's down to taste, comment wording,
   splitting a function that reads fine, micro-optimisations off the hot path,
-  speculative generality ("in case we add another backend"), and anything that only
-  restyles.
+  speculative generality ("in case we add another backend"), anything that only
+  restyles, and anything justified by a pattern name rather than a concrete cost.
 
-When unsure, ask: "Would a reviewer reasonably block the PR over this?" If not, drop it.
-The agent's HIGH/MEDIUM/LOW is input, not a verdict: a HIGH that's really taste is
-still dropped.
+**STRUCTURAL** findings that you accept (apply now or follow-up) go to the user before
+anything is applied (SKILL.md step 3). A finding against a test is never structural.
+
+The agent's tags are input, not a verdict: a HIGH that's really taste is still
+dropped, and a CODE finding that moves module boundaries is structural.
 
 ## Rubric: design findings
 
@@ -514,6 +565,6 @@ these outcomes:
 - anything in the project config's `critical` list
 
 Drop: style, naming, readability, missing tests for code that's otherwise correct,
-PLAUSIBLE findings whose failure scenario is vague, and duplicates of simplify findings.
+PLAUSIBLE findings whose failure scenario is vague, and duplicates of refactor findings.
 A PLAUSIBLE finding with a severe, concrete scenario goes to the fix agent marked
 "confirm first".

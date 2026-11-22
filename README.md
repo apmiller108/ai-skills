@@ -26,11 +26,10 @@ claude plugin install openspec-ship@ai-skills
 
 | | |
 |---|---|
-| Claude Code ≥ 2.1.323 | `simplify` and `code-review` are built into Claude Code |
+| Claude Code ≥ 2.1.323 | the built-in `code-review` skill, and `${CLAUDE_SKILL_DIR}` in skills |
 | [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI, with `openspec init` run in the repo | provides `openspec-apply-change` and `openspec-archive-change` |
 | `gh`, authenticated | branch, PR, checks, merge |
 | [impeccable](https://github.com/pbakaus/impeccable) *(optional)* | enables the UI review steps: overdrive, critique, polish, design audit. `/plugin marketplace add pbakaus/impeccable` |
-| `code-simplifier` agent *(optional)* | used for the simplify step if installed; otherwise a general-purpose agent runs the same prompt |
 | claude.ai artifacts *(optional)* | the Full manual test runner. Without them, the manual test is Light (PR checklist) or None |
 
 impeccable isn't a hard dependency on purpose: its steps only apply to UI changes, it

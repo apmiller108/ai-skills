@@ -1,6 +1,6 @@
 ---
 name: openspec-ship
-description: Take a proposed OpenSpec change from proposal to merged PR. It opens with a menu where the user toggles the pipeline steps (implement, overdrive, UX critique, simplify, polish, design audit, code review) and picks the manual test plan (full interactive runner, light PR checklist, or none); the specs run automatically after every step that changes code. Then it branches off the base branch, runs the chosen steps, opens the PR, delivers the chosen manual test plan and reads its results back, and archives and merges once they pass. Heavy phases run in subagents so the main context stays small. Use this whenever the user wants to "ship", "apply and PR", "implement and open a PR for", or "take through to merge" an OpenSpec change, or names a change from `openspec/changes/` and wants it built end to end, even if they don't say "ship". Also use it to resume a change already partway through this flow (branch exists, PR open, waiting on manual testing).
+description: Take a proposed OpenSpec change from proposal to merged PR. It opens with a menu where the user toggles the pipeline steps (implement, overdrive, UX critique, refactor, polish, design audit, code review) and picks the manual test plan (full interactive runner, light PR checklist, or none); the specs run automatically after every step that changes code. Then it branches off the base branch, runs the chosen steps, opens the PR, delivers the chosen manual test plan and reads its results back, and archives and merges once they pass. Heavy phases run in subagents so the main context stays small. Use this whenever the user wants to "ship", "apply and PR", "implement and open a PR for", or "take through to merge" an OpenSpec change, or names a change from `openspec/changes/` and wants it built end to end, even if they don't say "ship". Also use it to resume a change already partway through this flow (branch exists, PR open, waiting on manual testing).
 ---
 
 # OpenSpec ship
@@ -51,8 +51,6 @@ that file, and `<rules>` is its `rules` block, pasted into every agent prompt.
   (`/plugin marketplace add pbakaus/impeccable`) enables it.
 - **Artifact and ArtifactData tools** (optional). Without them, offer only Light and None
   for the manual test.
-- **Simplify agent**: use `code-simplifier:code-simplifier` if that agent type is
-  available, otherwise `general-purpose` with the same prompt.
 
 **Sibling skill.** The verification-plan scripts are at
 `${CLAUDE_SKILL_DIR}/../verification-plan`. Subagents can't expand that variable, so
@@ -72,16 +70,18 @@ state file at `$(git rev-parse --git-dir)/openspec-ship/<change>.md`. It lives i
 `.git`, so it's local and never committed. Update it at the end of every step:
 
 ```markdown
-step: 4-pr            # last step completed: 1-branch, 2-apply, 2a-overdrive, 2b-critique, 3-simplify, 3a-polish, 3b-design … 7-merged
-pipeline: implement, overdrive, critique, simplify, polish, audit, review   # the steps the user chose
+step: 4-pr            # last step completed: 1-branch, 2-apply, 2a-overdrive, 2b-critique, 3-refactor, 3a-polish, 3b-design … 7-merged
+pipeline: implement, overdrive, critique, refactor, polish, audit, review   # the steps the user chose
 manual-plan: full     # full | light | none
 impeccable-dir: /abs/path/to/impeccable   # or "not installed"
 vp-dir: /abs/path/to/verification-plan
 pr: 162
+learnings: |          # agent A's LEARNINGS section, verbatim (≤150 words); absent if Implement was deselected
+  - the filter state ended up in two contexts; one would do
 overdrive: view-transition morph on the filter panel   # the direction built, "none chosen", or skipped
 critique: 9 findings, 3 fixed, 1 follow-up, 5 dropped   # or "skipped (deselected)" / "skipped (no UI changes)"
 polish: 6 edits in 2 files   # or skipped
-simplify: 7 findings, 3 applied, 1 follow-up, 3 dropped
+refactor: 7 findings, 3 applied, 1 follow-up, 3 dropped
 design: 5 findings, 2 fixed, 3 dropped   # or "skipped (no UI changes)"
 follow-ups: - extract the path-masking table into a shared module (M)
 review: pending
@@ -119,7 +119,9 @@ UI.
   and merge always run; specs run after every step that changes code."
   - `Implement`: an agent works through `tasks.md`. Deselect when the code is already
     written on the branch.
-  - `Simplify`: a reuse, abstraction and dead-code pass over the diff.
+  - `Refactor`: a hindsight pass. Knowing what the build taught us, what would we
+    restructure? Duplication, abstractions, leftovers, structure; structural changes
+    are shown to you before they're applied.
   - `Code review`: the built-in `/code-review` skill at effort `high` on the open PR;
     critical bugs get fixed.
 - **UI review** (header `UI review`): "This change touches the UI. Which design steps
@@ -127,9 +129,9 @@ UI.
   - `Overdrive`: impeccable overdrive, right after implementing. It proposes 2–3
     ambitious directions for the new UI, you pick one (or none), and it builds it.
   - `UX critique`: impeccable critique (hierarchy, states, copy, heuristics) before
-    simplify, so later steps review the critiqued code. Only high-impact fixes for
+    refactor, so later steps review the critiqued code. Only high-impact fixes for
     likely situations get applied, picked automatically.
-  - `Polish`: impeccable polish after simplify: a final refinement pass on the changed
+  - `Polish`: impeccable polish after refactor: a final refinement pass on the changed
     UI, no redesign.
   - `Design audit`: impeccable audit (design doc tokens, WCAG AA, copy guide), last, as
     the check on everything above.
@@ -148,7 +150,7 @@ Then show the resolved pipeline in one block, leaving out the skipped steps (thi
 full one), and go:
 
 ```
-implement → overdrive → critique → simplify → polish → audit → [PR] → review → manual test → merge
+implement → overdrive → critique → refactor → polish → audit → [PR] → review → manual test → merge
   specs       specs       specs      specs      specs    specs   full     specs
 ```
 
@@ -161,7 +163,7 @@ or record the UI steps as `skipped (no UI changes)`.
 Specs aren't optional and don't need to be asked for:
 
 - **After every step that changes code** (apply, overdrive, polish, or the fix agent for
-  critique, simplify, audit, review or manual-test findings): `<lint>` and `<test>`,
+  critique, refactor, audit, review or manual-test findings): `<lint>` and `<test>`,
   trimmed as in step 2. Red never gets committed; failures go back to the agent that made
   the change.
 - **Before the PR**, whatever was selected: lint, test and `<full>` (step 4).
@@ -214,12 +216,14 @@ When it reports:
   If either fails, send the failures back to agent A and repeat. Don't commit red.
 
 Commit everything as one commit: `Implements <change>` plus a one-line body from the
-agent's summary. Commit message style is in "Commits" below.
+agent's summary. Commit message style is in "Commits" below. Save the report's
+LEARNINGS section verbatim to the state file as `learnings:`; step 3 reads it from
+there, so it survives a resume.
 
 ## 2a. Overdrive (agent H, if `Overdrive` is selected)
 
 Overdrive builds, it doesn't review, so it goes first among the UI steps and
-everything after it (critique, simplify, polish, audit, review) sees what it added.
+everything after it (critique, refactor, polish, audit, review) sees what it added.
 
 Skip with `overdrive: skipped (no UI changes)` if the diff has no files under
 `<ui.paths>`. Otherwise run the **overdrive agent** in two phases, because overdrive must
@@ -242,8 +246,8 @@ Run the gate and commit as `Adds <direction> to <change>`. On `None`, record
 
 ## 2b. UX critique (agents G1, G2 and C, if `UX critique` is selected)
 
-Critique sits here, before simplify, on purpose: its fixes are the biggest UI edits in
-the flow (states, hierarchy, copy, layout), so simplify, the audit and the code review
+Critique sits here, before refactor, on purpose: its fixes are the biggest UI edits in
+the flow (states, hierarchy, copy, layout), so refactor, the audit and the code review
 should all see the critiqued code rather than review code that changes afterwards.
 
 If `git diff --name-only <base>...HEAD -- <ui.paths>` prints nothing, record `critique:
@@ -271,26 +275,39 @@ commit as `Fixes <what> from UX critique`. In the step's progress line, name eac
 accepted finding with a few words on why. Tally for the PR body: `critique: 9 findings,
 2 fixed, 1 follow-up, 6 dropped`.
 
-## 3. Simplify (agents B and C, if `Simplify` is selected)
+## 3. Refactor (agents B and C, if `Refactor` is selected)
 
-Spawn the **simplify agent** (the agent type chosen in step 0). It reviews the change and
-the code around it and **reports only, without editing**: numbered findings, each with
-file:line, what to change, why, and its own impact rating.
+This is the "knowing what we know now, what would we do differently?" pass. Building
+the change taught things the proposal didn't know, and this step looks back at the
+code with that hindsight while it's still cheap to reshape.
 
-The code-simplifier agent is built to edit, so check `git status --porcelain` when it
-returns. If it changed files anyway, show the user the diff stat and ask whether to keep
-the edits or discard them with `git restore`.
+Spawn the **refactor agent** (general-purpose) with the template in the reference.
+Pass it the state file's `learnings:` verbatim (if Implement was deselected there are
+none, and the agent infers them from the commits), plus the overdrive and critique
+tallies so it doesn't re-raise them. It **reports only, without editing**: numbered
+findings tagged STRUCTURAL or CODE, each with file:line, what to change, its concrete
+cost, what it was learned from, and its size. It ends with an `Approach note:`.
 
-**Triage the findings yourself** using the rubric in the reference. Take the ones with a
-real effect on maintainability, readability or scalability and drop the nitpicks.
-Findings that are worth doing but fall outside this change (a refactor of an untouched
-module, say) become **follow-ups**: list them in the PR body and don't do them here.
+Check `git status --porcelain` when it returns. If it changed files anyway, show the
+user the diff stat and ask whether to keep the edits or discard them with
+`git restore`.
 
-If you accepted anything, spawn the **fix agent** (general-purpose) with only the accepted
-findings, copied verbatim. When it's done, run the lint and unit gate again and commit as
-`Simplifies <change>`. If nothing was accepted, skip the commit. Either way, keep a
-one-line tally (`simplify: 7 findings, 3 applied, 1 follow-up, 3 dropped as nitpicks`)
-for the PR body.
+**Triage the findings yourself** with the refactor rubric in the reference: accept,
+follow-up or drop. Copy the approach note into the follow-ups as it is, unless it's
+"none".
+
+**Structural findings go to the user.** If any accepted finding is STRUCTURAL, set
+`step: 3-refactor-paused`, record those findings in the state file, and show them in
+one block: each finding's what, cost and size, with your proposed disposition (apply
+now if S or M and in the diff, otherwise follow-up). Ask once which to apply, or "all
+as proposed". On a resume at `3-refactor-paused`, show the same block again. Code-level
+findings don't wait for anything but this answer: they go in the same batch.
+
+Then spawn the **fix agent** (general-purpose) once, with the accepted code-level
+findings and the structural ones the user approved, copied verbatim. When it's done,
+run the lint and unit gate again and commit as `Refactors <change>`. If nothing was
+accepted, skip the commit. Either way, keep a one-line tally (`refactor: 7 findings,
+3 applied (1 structural), 2 follow-ups, 2 dropped`) for the PR body.
 
 ## 3a. Polish (agent I, if `Polish` is selected)
 
@@ -362,7 +379,7 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 **Checks:** <lint, unit, full> pass locally.
 **Overdrive:** <direction built, "none chosen", or "skipped (…)">.
 **UX critique:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
-**Simplify:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
+**Refactor:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
 **Polish:** <tally, or "skipped (…)">.
 **Design audit:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
 **Review:** <"pending", or "skipped (deselected)">
@@ -381,7 +398,7 @@ at effort `high` against the PR number and sends back the findings as text.
 
 **Triage** with the critical-bug rubric in the reference, plus the project's `critical`
 list. Fix critical bugs and drop everything else: style, naming, PLAUSIBLE findings
-without a concrete failure, and simplifications and design findings already settled in
+without a concrete failure, and refactor and design findings already settled in
 steps 2a–3b. If a finding is severe but you doubt it, have the fix agent confirm it before
 fixing. A finding it can't confirm gets dropped, with a note.
 
@@ -503,7 +520,7 @@ At the end (or whenever you stop to wait), report in this shape:
 PR: <url>
 Commits: <n> (<subjects>)
 Pipeline: <selected steps>
-Overdrive: <direction>   Critique: <tally>   Simplify: <tally>   Polish: <tally>
+Overdrive: <direction>   Critique: <tally>   Refactor: <tally>   Polish: <tally>
 Design: <tally>   Review: <tally>   Manual: <tally>
 Test plan: <runner url (full), "PR checklist" (light), or "none">
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
