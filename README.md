@@ -108,8 +108,8 @@ flowchart TD
   results --> merge["7 · Archive spec, CI green, merge"]
   merge --> done([merged])
 
-  classDef opt fill:#e8f0fe,stroke:#4a6fd1
-  classDef ui fill:#f3e8fd,stroke:#8a4fd1
+  classDef opt fill:#dbe6fd,stroke:#4a6fd1,color:#10213f
+  classDef ui fill:#ecdcfb,stroke:#8a4fd1,color:#2b1240
 ```
 
 <sub>Blue: optional steps. Purple: optional UI steps, offered only when the change touches
