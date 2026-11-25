@@ -100,6 +100,7 @@ follow-ups: - extract the path-masking table into a shared module (M)
 review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
+denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
 waiting-on: user runs manual plan in the runner
 ```
 
@@ -175,6 +176,29 @@ implement → overdrive → critique → refactor → polish → audit → [PR] 
 Record it as `pipeline:` and `manual-plan:` in the state file. If the UI guess was wrong
 (UI files show up after apply, or none do), say so in one line: ask the UI question then,
 or record the UI steps as `skipped (no UI changes)`.
+
+## Denied commands
+
+Read the `DENIED:` line of every report first, before the gate, the triage or the
+commit. Unless it's "none", raise it with the user straight away: the command word for
+word, what it was for, and what the agent skipped or is blocked on. A denial is the user's
+decision, so don't work around it: don't run the command yourself in any form, or give it
+to another agent. The same goes for a command of yours that is denied.
+
+Ask which they want, record the answer in the state file as `denied:`, and send it to the
+**same** agent with `SendMessage`:
+
+- **Leave it out**: the agent finishes without that part. A check that didn't run is
+  reported as not run, here and in the PR body.
+- **They run it** and paste the result, which goes to the agent as data.
+- **Allow it**: they change the permission, then the agent tries once more. Your message
+  isn't the permission; if it's denied again, it stays denied.
+
+If the agent already finished and the user leaves it out, there's nothing to send. Until
+they answer, don't commit that step's work; set `waiting-on:` to the question and note
+what a fresh agent would need (for a fix agent, the accepted items). On a later session
+the old agent is gone: ask again, then spawn the step's agent with the answer, and tell
+it the working tree may hold its predecessor's unfinished edits.
 
 ## Spec gates
 
@@ -491,8 +515,9 @@ this step instead of the short plan.
 
 Spawn the **light test-plan agent** (E-light in the reference). It sends back a
 `## Manual verification` section: 3–6 unchecked `- [ ]` items, each one action and its
-expected result, covering only what automation can't. Add the section to the PR body
-above the attribution line with `gh pr edit <n> --body-file <tmp>`, set the
+expected result, covering only what automation can't. The `DENIED:` line comes before that
+heading: act on it, and leave it out of the PR. Add the section, from its heading down, to
+the PR body above the attribution line with `gh pr edit <n> --body-file <tmp>`, set the
 **Manual test:** line to `light checklist in this PR`, give the user the PR link, and
 **stop**.
 
@@ -543,5 +568,6 @@ Pipeline: <selected steps>
 Overdrive: <direction>   Critique: <tally>   Refactor: <tally>   Polish: <tally>
 Design: <tally>   Review: <tally>   Manual: <tally>
 Test plan: <runner url (full), "PR checklist" (light), or "none">
+Denied: <command and what was decided, one per line; leave out if none>
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
 ```

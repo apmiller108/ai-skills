@@ -34,9 +34,10 @@ orchestrator's context small, so keep it in.
 
 ## Shared blocks
 
-Subagents don't see this file. Before spawning one, replace the line `<standing-rules>`
-in its prompt with the full text of this block, its own placeholders filled in. A prompt
-that still contains the placeholder isn't ready to send.
+Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`
+and `<report-lines>` in its prompt with the full text of these blocks, their own
+placeholders filled in. A prompt that still contains either placeholder isn't ready to
+send. Agent H has two reports, so it gets the report lines twice.
 
 `<standing-rules>`:
 
@@ -52,7 +53,21 @@ every command you write for someone else to run. Isolation also covers whatever 
 data points at: before you run against a copy, check it for absolute paths, export
 folders, sync targets and caches that lead back to the real thing.
 
-An agent you launch doesn't see these rules: paste them into its prompt.
+Denied commands: a command refused by a permission prompt, rule, hook or sandbox is a
+decision by the user, and a command Safety rules out counts as denied. Run it once at
+most: don't retry it, reword it, or look for another route to the same effect (another
+tool, a script, another agent). Skip the part that needed it, or stop and report
+BLOCKED if the rest depends on it, and report it either way.
+
+An agent you launch doesn't see these rules: paste them into its prompt. What it
+reports as denied, you report too.
+```
+
+`<report-lines>`:
+
+```
+Always include this, outside the word cap, one line per item:
+DENIED: <the command, word for word; what it was for; "skipped <what>" or "BLOCKED"; or "none">
 ```
 
 ## A. Apply agent
@@ -92,6 +107,7 @@ LEARNINGS (≤150 words, bullets): what building this taught you that the propos
   (and whether any trace of them remains); and "if I started again I'd …". A later
   agent uses this to refactor with hindsight, so be candid and specific (file or
   symbol names). "None" is fine if it really went to plan.
+<report-lines>
 ```
 
 ## B. Refactor agent
@@ -164,6 +180,7 @@ Report (≤700 words), numbered findings, most impactful first:
     Size: S | M | L
 Approach note: <one line, or "none">
 If there's nothing worth changing, say so in one line (plus the approach note).
+<report-lines>
 ```
 
 ## C. Fix agent
@@ -196,6 +213,7 @@ APPLIED: <item numbers, one line each on what changed>
 UNCONFIRMED / SKIPPED: <item numbers and why>
 FILES: <changed paths>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
+<report-lines>
 ```
 
 ## D. Review agent
@@ -208,7 +226,8 @@ Review PR #<n> (branch `<change>`) in <repo>.
 Invoke the Skill tool with skill `code-review` (the built-in one, not a plugin's
 `<plugin>:code-review`) and args `high <n>`, and follow it. Don't use --fix or
 --comment, and don't edit files. Where the skill has you launch agents, the standing
-rules below go into their prompts.
+rules below go into their prompts. Where it runs as an agent of its own, it can't see
+them: report any denial its result mentions as yours.
 
 The orchestrator can't see ReportFindings output, so after the review, also put
 the findings in your final message.
@@ -219,6 +238,7 @@ Report (≤500 words), findings most severe first:
 <n>. [CONFIRMED|PLAUSIBLE] <category> <file>:<line>: <summary>
     Failure: <concrete input/state → wrong result>
 If there are no findings, say so.
+<report-lines>
 ```
 
 ## E. Test-plan agent
@@ -293,6 +313,7 @@ BUILD: dev | packaged, and why
 CASES: <id — title — req|opt, one per line>
 OUT OF SCOPE: <what automation already covers, one line each with the test file>
 UNVERIFIED: <commands or UI labels you couldn't confirm, or "none">
+<report-lines>
 ```
 
 ## E-light. Light test-plan agent
@@ -319,7 +340,9 @@ follows Safety below, and an item that needs real data says to back it up first.
 
 <standing-rules>
 
-Report (≤200 words), exactly this markdown and nothing else:
+Report (≤200 words). First these lines, which the orchestrator keeps out of the PR:
+<report-lines>
+Then exactly this markdown, and nothing after it:
 ## Manual verification
 
 Build: <dev or production build, with the command>, <why, a few words>
@@ -365,6 +388,7 @@ Report (≤400 words), findings most severe first:
     Fix: <the concrete change, e.g. which token replaces which value>
     In diff: yes | no (surrounding code)
 If there's nothing worth changing, say so in one line.
+<report-lines>
 ```
 
 ## G1. Critique design-review agent
@@ -411,6 +435,7 @@ FINDINGS, most severe first:
     Fix: <the concrete change>
     In diff: yes | no (surrounding code)   Scope: in proposal | beyond proposal
 VIEWED: <screens/states screenshotted, or why the app couldn't be viewed>
+<report-lines>
 ```
 
 ## G2. Critique detector agent
@@ -438,6 +463,7 @@ DETECTOR: ran | unavailable (<reason>)
 HITS IN DIFF: <n>. [<rule>] <file>:<line>: <one line>
 FALSE POSITIVES: <hit and why, one line each>
 OUTSIDE DIFF: <count by rule>
+<report-lines>
 ```
 
 ## H. Overdrive agent
@@ -475,6 +501,7 @@ DIRECTIONS:
 <n>. <name>: <what the user sees and feels, 1–2 lines>
    Technique: <APIs/approach>   Cost: <performance, complexity, reduced-motion path>
 FIT: <one line per direction on how it fits the product>
+<report-lines>
 
 When resumed with a pick, build only that direction, only on the change's surfaces.
 Respect prefers-reduced-motion and the design doc's tokens. Add the direction to
@@ -488,6 +515,7 @@ BUILT: <what, one line>
 FILES: <changed paths>
 VERIFIED: <states screenshotted, or why not>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
+<report-lines>
 ```
 
 ## I. Polish agent
@@ -524,6 +552,7 @@ Report (≤250 words):
 EDITS: <file>:<line>: <what changed and why, one line each>
 NOT CHANGED: <what you'd change but didn't, and why: redesign, out of scope, needs a decision>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
+<report-lines>
 ```
 
 ---
