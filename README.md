@@ -130,7 +130,7 @@ steps drop out of the chain.</sub>
 
 | Step | Agent(s) | Edits? | What happens |
 |---|---|---|---|
-| Implement | **A** apply | yes | Runs `openspec-apply-change`, works through `tasks.md`, reports LEARNINGS for the refactor step. |
+| Implement | **A** apply | yes | Runs `openspec-apply-change`, works through `tasks.md` (ticking a task only when its own check passed on the final code), reports LEARNINGS for the refactor step. |
 | Overdrive | **H** overdrive | yes, after you pick | Proposes 2–3 ambitious UI directions; you pick one (or none) and the same agent builds it. |
 | UX critique | **G1** design review ∥ **G2** detector | no | Two isolated assessments run in parallel; the orchestrator cross-checks and keeps only fixes a real user would notice. |
 | Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings, each with the risk of changing it and how to check that. Structural ones, and any that reverse a `design.md` decision, are shown to you before they're applied. |
@@ -162,6 +162,10 @@ sequenceDiagram
   O->>O: lint + unit gate (red goes back to C)
   O->>O: commit, record tally for the PR body
 ```
+
+Verification tasks in `tasks.md` are tied to the code they ran on. Slow ones (full suite,
+performance, packaged build) run in step 4, any that a later fix could affect run again, and
+nothing is archived with one that's neither passed nor waived by you.
 
 An agent that departs from a recorded decision updates `design.md` in the same pass and
 reports it; step 7 checks each reported deviation before the change is archived.

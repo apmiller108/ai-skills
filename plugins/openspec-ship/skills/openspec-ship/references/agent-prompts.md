@@ -45,9 +45,9 @@ lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
-`C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`, `C-artifacts`. Create it with plain
-`mkdir` just before spawning. If it exists, it belongs to an earlier spawn: use
-`<name>-2`, then `-3`. An agent continued with `SendMessage` keeps its folder.
+`C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`, `C-artifacts`,
+`C-verify`. Create it with plain `mkdir` just before spawning. If it exists, it belongs to
+an earlier spawn: use `<name>-2`, then `-3`. An agent continued with `SendMessage` keeps its folder.
 
 `<standing-rules>`:
 
@@ -124,7 +124,8 @@ update design.md (proposal.md if there is none), and the specs and tasks.md wher
 affected, and say there what changed and why. That's always in scope, whatever files or
 items this prompt limits you to. What the change must do isn't yours to loosen: a spec
 requirement or a task's stated check changes only if the user or an accepted item says
-so; otherwise report it. One DEVIATIONS line per departure, outside the word cap.
+so; otherwise report it. Report each departure, one line each, outside the word cap:
+DEVIATIONS: <what the artifact said; what's built instead, and why; file and section updated>
 ```
 
 `<report-lines>`:
@@ -146,7 +147,18 @@ Implement the OpenSpec change `<change>` in <repo>, on the
 branch `<change>` (already checked out; don't switch branches or commit).
 
 Invoke the Skill tool with `openspec-apply-change` and the change name, then follow
-it through every task.
+it through every task, except for how it ticks them:
+- A task with no check of its own: tick it when its work is done.
+- A task that states a check (a suite, a count, a measurement, a build, a look at the
+  app), alone or with an edit: do the edit, and tick it only when the check has passed on
+  the final code. Run these checks after your last edit; an earlier run doesn't count,
+  and if you edit again, untick and re-run. Passing means everything the task says:
+  50/51 isn't a pass, nor is a dev build where it says packaged.
+- Don't run a slow check (a suite beyond `<test>`<if full: , so `<full>`>; a performance
+  measurement; a packaged build) or one that needs a person or another machine. Leave
+  those unticked and report them; they're run later. A check that failed or couldn't run
+  also stays unticked.
+You're done when only such tasks are left.
 
 Project rules:
 <rules>
@@ -170,12 +182,15 @@ One you're sure was there before this change: leave it, and report it under TEST
 
 Report (≤400 words):
 STATUS: DONE | BLOCKED
-TASKS: <n>/<m> checked
+TASKS: <n>/<m> ticked
+UNTICKED: <task id: "deferred", "failed: <result>" or "not run: <why>">, or "none"
+CHECKS: <id of each ticked task that states a check: command, result as printed>, or "none".
+  All run after your last edit. One line per task here and above, outside the word cap
 FILES: <changed paths, grouped by area>
 SUMMARY: <one line, what the change does>
 TESTS: <specs added or changed; result of the runs>
 BLOCKED ON (if blocked): <the question, the options you see, and which you'd pick>
-DEVIATIONS: <what the artifact said; what you built and why; file and section updated>, or "none"
+DEVIATIONS: <as in Change artifacts>, or "none"
 NOTES: <anything else the orchestrator must know, such as stale names in gitignored
   files>
 LEARNINGS (≤150 words, bullets): what building this taught you that the proposal
@@ -278,8 +293,9 @@ If there's nothing worth changing, say so in one line (plus the approach note).
 ## C. Fix agent
 
 `subagent_type: "general-purpose"`. Used for accepted critique findings, accepted refactor
-findings, accepted design findings, accepted review findings, full-suite failures and
-manual-test failures. Give it only what was accepted.
+findings, accepted design findings, accepted review findings, full-suite failures,
+manual-test failures, artifact updates (`C-artifacts`) and verification runs (`C-verify`).
+Give it only what was accepted.
 
 ```
 On branch `<change>` in <repo>, apply exactly these accepted
@@ -305,6 +321,7 @@ Rules:
   "Removed names" search below on your own edits (`git diff HEAD`).
 - Don't widen the scope beyond that and the change artifacts. If a fix needs any other
   change, report it instead of making it.
+- Don't tick or untick tasks in tasks.md; the orchestrator does.
 - Don't commit. Finish with `<lint>` and `<test>`; both must pass.
 
 <standing-rules>
@@ -318,7 +335,7 @@ APPLIED: <item numbers, one line each on what changed>
 UNCONFIRMED / SKIPPED: <item numbers and why>
 TESTS: <item number and its regression test, or why it has none>
 CHECKS: <item number: result of its Risk check, with the numbers, or "not run" and why>
-DEVIATIONS: <what the artifact said; what it is now and why; file and section updated>, or "none"
+DEVIATIONS: <as in Change artifacts>, or "none"
 FILES: <changed paths>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
@@ -621,8 +638,9 @@ FIT: <one line per direction on how it fits the product>
 
 When resumed with a pick, build only that direction, only on the change's surfaces.
 Respect prefers-reduced-motion and the design doc's tokens. Add the direction to
-openspec/changes/<change>/design.md and a checked task for it to tasks.md. Verify it
-in the running app: start `<ui.run>` in the background and screenshot into <agent-dir>
+openspec/changes/<change>/design.md and a task for building it to tasks.md, ticked only
+if you saw it work after your last edit (else unticked, and say why). Verify it in the
+running app: start `<ui.run>` in the background and screenshot into <agent-dir>
 as <ui.view> describes, at most two fix rounds, then stop the app. Finish with
 `<lint>` and `<test>`.
 
@@ -632,7 +650,7 @@ Phase 2 report (≤200 words):
 BUILT: <what, one line>
 FILES: <changed paths>
 VERIFIED: <states screenshotted, or why not>
-DEVIATIONS: <what the artifact said before your direction; what it is now; file and section>, or "none"
+DEVIATIONS: <as in Change artifacts>, or "none"
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
 ```
@@ -671,7 +689,7 @@ where polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
 
 Report (≤250 words):
 EDITS: <file>:<line>: <what changed and why, one line each>
-DEVIATIONS: <what the artifact said; what it is now and why; file and section updated>, or "none"
+DEVIATIONS: <as in Change artifacts>, or "none"
 NOT CHANGED: <what you'd change but didn't, and why: redesign, out of scope, needs a decision>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>

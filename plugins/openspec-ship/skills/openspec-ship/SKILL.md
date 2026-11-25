@@ -127,6 +127,10 @@ review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
 denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
+verification: |       # per verification task: result @ commit, deferred, or waived
+  - 4.1 full suite: deferred
+  - 4.2 import under 2 s: pass (1.4 s) @ 3f2c1a0
+  - 4.3 signed build: waived by the user (no certificate here)
 deviations: |         # every DEVIATIONS line, with its step
   - apply (A): polling instead of a file watcher, watcher misses network drives; design.md "Change detection"
 pre-existing: e2e/export.spec "keeps tags": 2/2 on base 6521867, timeout at save   # or "flaky"
@@ -159,7 +163,8 @@ Then read the state file if it exists and resume after its `step`, with its
 without `pipeline:` predates the menu, so treat it as every step on). Paths recorded in a
 state file can go stale after a plugin update: re-resolve `vp-dir` and `impeccable-dir`
 if they no longer exist. If there's no file, check the git and PR state: no branch → 1;
-unchecked tasks in `tasks.md` → 2; tasks done but no PR → assume 3 hasn't run and do it;
+unchecked tasks in `tasks.md` other than verification tasks → 2; none of those left but no
+PR → assume 3 hasn't run and do it (verification tasks wait for step 4, ticked or not);
 PR open → ask the user which step it reached rather than redoing review. Without a state
 file, show the menu before resuming. Say which step you're resuming at, and why, in one
 line.
@@ -283,6 +288,37 @@ says (section 0):
 - A step that was skipped, or whose findings were all dropped, changed nothing and runs
   no gate.
 
+## Verification tasks
+
+A **verification task** is a task in `tasks.md` that states a check: a suite, a count, a
+measurement, a build, something to look at, alone or with an edit. Its result is true only
+of the code it ran on, so record each in the state file's `verification:` with its commit.
+A result is **stale** once a later commit touches anything the check exercises; if unsure,
+it's stale. Commits under `openspec/` don't count unless they change the task itself, lint
+and unit tasks are kept fresh by the gates, and for a `<full>` task
+`<full_after_changes_in>` decides, if set.
+
+- **Step 4 runs** every verification task that's deferred, failed, stale or has no recorded
+  result (Implement deselected, no state file). The slow ones (full suite, performance,
+  packaged build) are always deferred to here. You run them, on committed code, in the gate
+  form; a check that takes more than a command or two goes to the fix agent as `C-verify`
+  ("run the check in task <id>, report the result, change nothing"). One `<full>` run
+  serves every task that asks for it.
+- **You tick**, when the result meets everything the task says, and untick one that no
+  longer holds. A commit with only these edits is `Records verification of <change>`.
+- **Fails**: handle as a failing gate, then re-run it and whatever the fix made stale. A
+  suite whose only failures are
+  pre-existing passes once CI has passed those specs on the same code.
+- **Needs a person or another machine**: pass it to agent E or E-light as a case to
+  include; it's ticked when that case passes. With no manual plan, ask the user for it.
+- **Can't run** (denied, `safety`, missing hardware): ask the user to run it or waive it.
+- **After step 4**, review, CI and manual-test fixes can make results stale; step 7 re-runs
+  those once. A number in the PR body always comes from a result that isn't stale.
+
+A task is **resolved** when it's ticked (a verification task: on a result that isn't
+stale) or the user waived it. Only they can; it stays unticked, with `(waived by the user:
+<reason>)` on its line.
+
 ## Deviations
 
 Record every `DEVIATIONS:` line in the state file as you read the report; step 7 checks
@@ -311,13 +347,14 @@ change in the tree. Fast-forward with `git merge --ff-only origin/<base>`.
 - **Implement deselected**: the code should already be on the branch `<change>`. Switch
   to it if it exists instead of creating it. Uncommitted changes on that branch are the
   implementation: run the lint and unit gate, then commit them as `Implements <change>`.
-  If `tasks.md` still has unchecked tasks, list them and ask whether to go on.
+  If `tasks.md` still has unchecked tasks other than verification tasks, list them and ask
+  whether to go on. Nobody has reported results, so step 4 runs every verification task.
 
 ## 2. Apply (agent A, if `Implement` is selected)
 
 Spawn the **apply agent** (general-purpose) with the template in the reference. It runs
 the `openspec-apply-change` skill, implements every task, and runs lint plus the unit
-tests that cover what it touched.
+tests that cover what it touched. It leaves slow verification tasks unticked.
 
 When it reports:
 
@@ -326,7 +363,14 @@ When it reports:
   with `SendMessage`. If the answer changes the proposal, the agent updates the artifacts
   as part of resuming.
 - **Done**: confirm it yourself (this is the "tests pass" gate): run `<lint>`, then
-  `<test>`, each in the gate form. If either fails, send the failures back to agent A and repeat. Don't commit red.
+  `<test>`, each in the gate form. If either fails ("Spec gates"), send the failures back to
+  agent A and repeat. Don't commit red.
+
+  Then compare `grep -nE '^ *[-*] \[[ xX]\]' openspec/changes/<change>/tasks.md` with the
+  report. Every verification task is in CHECKS or UNTICKED. A ticked one has a result that
+  meets everything the task says and doesn't contradict your gate; if not, untick it and
+  send it back. `deferred` is for the slow ones only; `failed` goes back to the agent, and
+  to the user if it can't be made to pass. Any other unticked task is unfinished work.
 
 Commit everything as one commit: `Implements <change>` plus a one-line body from the
 agent's summary. Commit message style is in "Commits" below. Save the report's
@@ -349,8 +393,8 @@ have the user's pick before it writes code and a subagent can't ask:
    the options themselves; text around the question isn't visible while it's open.
 3. **Build**: send the pick to the **same** agent with `SendMessage`. It builds the
    direction on the change's surfaces only, adds the direction to the change's
-   `design.md` and a checked task to `tasks.md` (so the archived spec matches what
-   shipped), and verifies it in the running app.
+   `design.md` and a task to `tasks.md` (so the archived spec matches what shipped), and
+   verifies it in the running app. It ticks the task only if that worked.
 
 Check `git status --porcelain` and the diff stat: anything outside the change's UI files
 and its `openspec/changes/<change>/` artifacts gets shown to the user before you keep it.
@@ -443,10 +487,10 @@ token drift, copy fit), and its fixes are too small to triage one by one. It rep
 it changed and what it would have changed but didn't (a redesign, anything outside the
 changed files).
 
-Check `git status --porcelain` as in step 3b (the change's own artifacts are fine), and restore `PRODUCT.md`, the design doc
-and impeccable config without asking. Run the gate and commit as `Polishes <change>`.
-Anything it flagged but didn't change becomes a follow-up. Tally: `polish: 6 edits in 2
-files, 1 follow-up`.
+Check `git status --porcelain` as in step 3b (the change's own artifacts are fine), and
+restore `PRODUCT.md`, the design doc and impeccable config without asking. Run the gate
+and commit as `Polishes <change>`. Anything it flagged but didn't change becomes a
+follow-up. Tally: `polish: 6 edits in 2 files, 1 follow-up`.
 
 ## 3b. Design audit (agents F and C, if `Design audit` is selected)
 
@@ -474,12 +518,13 @@ accepted findings with the fix agent, run the lint and unit gate, and commit as
 ## 4. Full suite, then the PR
 
 Run the whole local gate before anyone else looks at the branch: `<lint>`, `<test>` and,
-if configured, `<full>`, each in the gate form. Run `<full>` whatever the change is. It's usually slow, so run it with
-`run_in_background` and wait to be notified. If it fails, do the baseline check
-("Spec gates"); failures the change caused go to a fix agent. Re-run, and commit as
-`Fixes <what>`.
+if configured, `<full>`, each in the gate form. Run `<full>` whatever the change is. It's
+usually slow, so run it with `run_in_background` and wait to be notified. If it fails, do
+the baseline check ("Spec gates"); failures the change caused go to a fix agent. Re-run,
+and commit as `Fixes <what>`.
 
-Then push and open the PR against the base:
+With the gate green and the fixes committed, run the verification tasks ("Verification
+tasks"), then push and open the PR against the base:
 
 ```bash
 git push -u origin <change>
@@ -495,6 +540,7 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 
 **Checks:** <lint, unit, full> pass locally<, except the ones below>.
 **Already failing before this change:** <spec, counts on base and commit, "flaky" if so; what CI says about it. Leave the line out if none>
+**Verification tasks:** <n>/<m> ticked at <sha>; <measured numbers>; <open or waived ones and why>. <leave out if tasks.md has none>
 **Overdrive:** <direction built, "none chosen", or "skipped (…)">.
 **UX critique:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
 **Refactor:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
@@ -603,9 +649,9 @@ gh pr view <n> --json body -q .body | sed -n '/^## Manual verification/,/^## /p'
 ```
 
 It passes when the section came back with items and no `- [ ]` is left; an empty result
-means the read failed (the pipe hides `gh`'s exit code), not that it passed. An item the user reports as failing goes to the fix
-agent as in "Failures" above; after the fix, the user re-ticks it. Tally:
-`manual: light, 5/5 checked`.
+means the read failed (the pipe hides `gh`'s exit code), not that it passed. An item the
+user reports as failing goes to the fix agent as in "Failures" above; after the fix, the
+user re-ticks it. Tally: `manual: light, 5/5 checked`.
 
 ## 7. Archive and merge
 
@@ -613,21 +659,29 @@ Only after the user confirms, and the manual plan has passed: the runner's resul
 (full), every PR checkbox ticked (light), or nothing to wait for (none). Read the first
 two back as in step 6 rather than taking it on trust.
 
-Before archiving, check each line of `deviations:` against the section it names (read only
-that section). If the artifact doesn't describe what shipped, or the section is gone, the
-fix agent (`C-artifacts`) updates it, in a commit of its own.
+Before archiving, in this order; a code fix in any of them starts the list over:
+
+- **CI** is green on the pushed head. Run `gh pr checks <n> --watch` in the gate form, in
+  the background; exit 0 is green. If anything fails, fix it and push again. A repo with
+  no CI exits non-zero with "no checks reported", and that's fine; one that has CI says the
+  same just after a push, so wait and run it again. For `pre-existing:` specs CI is the
+  only check: confirm it ran them and put the result in the PR body. If it didn't, nothing
+  covers them and the user decides. Being on that list doesn't excuse a red: a listed spec
+  that fails in CI blocks the merge too, unless the user, told which, says to merge with it
+  red (say so in the PR body).
+- **Verification**: re-run what's stale, update the ticks and the PR body, and list any task
+  in `tasks.md` that isn't resolved. If there is one, stop and ask; don't archive.
+- **Deviations**: check each line of `deviations:` against the section it names (read only
+  that section). If the artifact doesn't describe what shipped, or the section is gone,
+  the fix agent (`C-artifacts`) updates it, in a commit of its own.
 
 1. Run the `openspec-archive-change` skill for the change here in the main session. It
-   asks questions, and it's small. It syncs the delta specs into `openspec/specs/`.
+   asks questions, and it's small. It syncs the delta specs into `openspec/specs/`. It
+   warns about unchecked tasks: go ahead only if every one is waived, which the user has
+   already settled.
 2. Commit as `Archives <change>` and push.
-3. Wait for CI: `gh pr checks <n> --watch` in the gate form, in the background. Exit 0 is
-   green. If anything fails, fix it and push again; don't merge red. A repo with no CI
-   checks exits non-zero with "no checks reported", and that's fine; a repo that has CI
-   says the same just after a push, so wait and run it again.
-   For `pre-existing:` specs CI is the only check, so confirm it ran them; if it
-   didn't, nothing covers them and the user decides. Being on that list doesn't excuse a
-   red: a listed spec failing in CI blocks the merge too, unless the user, told which, says
-   to merge with it red (record that in the PR body).
+3. Wait for CI again, as above; don't merge red. If it takes a code fix, run the checks
+   above again before merging, against the archived change's files.
 4. Merge with the configured method: `gh pr merge <n> --<merge>`.
 5. Switch back with `git switch <base> && git fetch origin <base> && git merge --ff-only
    origin/<base>`, and report the merge commit in one line.
@@ -665,6 +719,7 @@ Overdrive: <direction>   Critique: <tally>   Refactor: <tally>   Polish: <tally>
 Design: <tally>   Review: <tally>   Manual: <tally>
 Test plan: <runner url (full), "PR checklist" (light), or "none">
 Denied: <command and what was decided, one per line; leave out if none>
+Verification: <n>/<m> ticked; <open or waived ones>
 Already failing: <pre-existing and flaky specs, and what CI says; leave out if none>
 Leftovers: <paths and processes outside the agents' folders; leave out if none>
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
