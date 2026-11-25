@@ -35,10 +35,10 @@ orchestrator's context small, so keep it in.
 
 ## Shared blocks
 
-Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`
-and `<report-lines>` in its prompt with the full text of these blocks, their own
-placeholders filled in. A prompt that still contains either placeholder isn't ready to
-send. Agent H has two reports, so it gets the report lines twice.
+Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`,
+`<removed-names>` (A, B and C) and `<report-lines>` in its prompt with the full text of
+these blocks, their own placeholders filled in. A prompt that still contains one of those
+lines isn't ready to send. Agent H has two reports, so it gets the report lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
@@ -69,12 +69,42 @@ or stop and report BLOCKED if the rest depends on it, and report it either way.
 Files: your scratch folder is <agent-dir>. Screenshots, temp files, test data and tool
 output go there, not in /tmp or the folder above it. Outside it, write only the edits
 this prompt asks for, the output paths it names, and what the project's own commands
-produce inside the repo. Where this prompt says not to edit files, the scratch folder
-is still yours to use. Never delete or overwrite a path you didn't create, unless it's
+produce inside the repo. Never delete or overwrite a path you didn't create, unless it's
 one of those edits or outputs.
+
+Where this prompt says not to edit files, the scratch folder is still yours to use, and
+you may run, under Safety: commands that only read, the project's tests and linter, the
+runs this prompt names, and throwaway benchmarks or scripts kept in the scratch folder.
+Build output and caches that git ignores are fine; otherwise leave the repo as it is:
+its files (no auto-fix, formatter or snapshot update), git's state (index, branches,
+stash, worktrees) and what's installed in it.
 
 An agent you launch doesn't see these rules: paste them into its prompt. What it
 reports as denied or left behind, you report too.
+```
+
+`<removed-names>`:
+
+```
+Removed names: list everything the change removed or renamed that something elsewhere
+could still refer to: DB columns, files, symbols, env vars, config keys, commands,
+routes, UI strings that tests look for. Read them off the removed lines:
+
+  git diff --no-ext-diff -U0 --merge-base <base> | grep -E '^(-|rename from)'
+
+Search the whole repo for each one, and for the other spellings it goes by (`mask_level`,
+`maskLevel`):
+
+  git grep -nIF --untracked -e '<name>' -- ':/' ':!/openspec'
+
+That covers tracked and new files, dotfiles included; plain `rg` skips dotfiles, such as
+a console config or a CI workflow. It leaves out gitignored files, so look for the name
+in local config too, listing paths only (it can hold secrets):
+
+  git grep -lF --untracked --no-exclude-standard -e '<name>' -- ':(top,glob)**/.env*'
+
+A hit counts when the change broke it. History that should keep the old name (past
+migrations, changelogs) doesn't. A gitignored file is the user's: report it, don't edit it.
 ```
 
 `<report-lines>`:
@@ -105,6 +135,10 @@ You can't talk to the user. Where the skill says to pause and ask (an unclear ta
 a design problem in the proposal, a blocker), stop and report it as BLOCKED instead
 of guessing. You may be resumed with an answer.
 
+Once the code is written, and before the checks, fix every hit of this search:
+
+<removed-names>
+
 When the tasks are done, run `<lint>` and the unit specs covering what you
 touched (<if test_paths: `<test_paths>`; otherwise: `<test>`>), and fix any failures.
 
@@ -117,7 +151,8 @@ FILES: <changed paths, grouped by area>
 SUMMARY: <one line, what the change does>
 TESTS: <specs added or changed; result of the runs>
 BLOCKED ON (if blocked): <the question, the options you see, and which you'd pick>
-NOTES: <anything the orchestrator must know: artifact edits, deviations from the proposal>
+NOTES: <anything the orchestrator must know: artifact edits, deviations from the proposal,
+  stale names in gitignored files>
 LEARNINGS (≤150 words, bullets): what building this taught you that the proposal
   didn't know. Where you deviated from design.md and why; what turned out harder or
   different than planned; workarounds you left in; approaches you tried and abandoned
@@ -144,6 +179,8 @@ code has an easier time.
 
 Read first:
 - openspec/changes/<change>/proposal.md, design.md and tasks.md: what was planned.
+  Check every finding against the decisions in design.md. Reversing one takes evidence
+  from the build; without it, leave the finding out.
 - `git log --oneline <base>..HEAD`: how it was actually built.
 - What the build taught us (from the agent that implemented it; take it seriously,
   it's the main input):
@@ -154,7 +191,7 @@ Don't re-raise those.>
 
 Scope: the diff (`git diff <base>...HEAD`), specs included, plus the code around
 it: the functions and modules the diff touches, their direct callers, and sibling
-modules doing the same job.
+modules doing the same job. For names the change removed or renamed, the whole repo.
 
 Project rules:
 <rules>
@@ -163,7 +200,8 @@ The project's conventions win: the rules above, CLAUDE.md or AGENTS.md, and the
 patterns in sibling modules. Don't import a generic style the project doesn't use.
 Every finding must name a concrete cost in this codebase ("the next export format
 means editing 4 files", "these two copies already disagree on X"). A pattern name
-("violates SRP") is fine as shorthand, never as the reason.
+("violates SRP") is fine as shorthand, never as the reason. It must also name what the
+change itself risks; measure that when a throwaway benchmark can settle it.
 
 Work through these in order:
 1. Hindsight structure: given what the build taught us, would the module
@@ -173,27 +211,39 @@ Work through these in order:
 3. Abstraction and altitude: the wrong level, a leaky abstraction, a premature
    one, or a missing one where the diff now has 3+ near-copies.
 4. Leftovers from the build: dead code, abandoned approaches, scaffolding,
-   temporary flags, compatibility shims, TODOs the change made obsolete.
+   temporary flags, compatibility shims, TODOs the change made obsolete, and uses of
+   a removed or renamed name (search below).
 5. Readability: misleading names on new surfaces, branching that hides the rule
    being applied.
 6. Coupling and boundaries across process, module or service lines.
 7. Scale: work that grows badly with the size of the data the project handles.
 Tests get the same angles (copied setup, fixtures that should be shared, tests
 pinned to details the learnings say will change); a test finding is always CODE.
+Wrong behaviour you come across while doing this is a finding too, marked [BUG].
+
+<removed-names>
 
 Skip formatting, comment wording, renames that are down to taste, and speculative
 generality. The formatter and linter own style. If a better *approach* entirely
 (another algorithm, library or design) comes to mind, don't make it a finding: put
 it in the approach note.
 
+If a finding is partly in the diff and partly in surrounding code, and the in-diff part
+stands on its own, split it into <n>a and <n>b, each with every line of the report
+format. If it doesn't, keep one finding with `In diff: no (surrounding code)`.
+
 <standing-rules>
 
-Report (≤700 words), numbered findings, most impactful first:
-<n>. [STRUCTURAL|CODE] [HIGH|MED|LOW] <file>:<line>
+Report (≤900 words), numbered findings, most impactful first:
+<n>. [STRUCTURAL|CODE] [HIGH|MED|LOW] [BUG, if it fixes wrong behaviour] <file>:<line>
     What: <the change to make, concretely>
-    Cost today: <the concrete cost of leaving it>
+    Cost today: <the concrete cost of leaving it; for a [BUG], input → wrong result>
+    Risk: <what making the change costs or could break (startup, speed, migration,
+      behaviour) and how much is expected, or "none expected">; check: <the test to run,
+      or what to measure before and after>
+    Design: ok | reverses "<decision in design.md>": <what the build showed against it>
     Learned from: <the learning or commit that prompted it, or "fresh read">
-    In diff: yes | no (surrounding code)
+    In diff: yes | no (surrounding code) | no (broken by the change)
     Size: S | M | L
 Approach note: <one line, or "none">
 If there's nothing worth changing, say so in one line (plus the approach note).
@@ -216,18 +266,31 @@ Project rules:
 <rules>
 
 Rules:
-- <for review findings>: confirm each bug before fixing it, and add a regression
-  test that fails without the fix. If you can't confirm a bug, don't change code
-  for it; report it as UNCONFIRMED.
-- Don't widen the scope. If a fix needs a change outside these items, report it
-  instead of making it.
+- Review findings and items marked [BUG]: confirm each bug before fixing it. If you
+  can't, don't change code for it; report it as UNCONFIRMED.
+- Any item that fixes wrong behaviour, whichever step it came from (review, refactor,
+  critique, audit, the full suite, manual testing): add a regression test that fails
+  without the fix; a test that's already failing for it counts. If the project's tests
+  can't reach it, say why under TESTS. Pure restructuring, looks and copy need none.
+- An item with a `Risk:` line: run its check, measuring before you edit and again after.
+  If it comes out worse than the line expects, look for a cheaper way to do the same
+  thing; failing that, undo your edits for that item and report it as SKIPPED with the
+  numbers.
+- An item includes every use of what it removes or renames: when you've edited, run the
+  "Removed names" search below on your own edits (`git diff HEAD`).
+- Don't widen the scope beyond that. If a fix needs a change outside these items,
+  report it instead of making it.
 - Don't commit. Finish with `<lint>` and `<test>`; both must pass.
 
 <standing-rules>
 
-Report (≤200 words):
+<removed-names>
+
+Report (≤250 words):
 APPLIED: <item numbers, one line each on what changed>
 UNCONFIRMED / SKIPPED: <item numbers and why>
+TESTS: <item number and its regression test, or why it has none>
+CHECKS: <item number: result of its Risk check, with the numbers, or "not run" and why>
 FILES: <changed paths>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
@@ -629,17 +692,28 @@ what keeps it from becoming churn.
   abstraction or name that would mislead the next reader; deletes leftovers from the
   build (dead code, abandoned approaches, scaffolding); cuts coupling across process
   or module boundaries; removes work that grows with data size on a hot path;
-  collapses branching that hides the rule being applied.
-- **Follow-up, not now**: a worthwhile change to code the diff doesn't touch, or one
-  that's L-sized compared with the change. List it in the PR body; the user decides
-  whether it becomes an issue. The agent's approach note goes here too, untriaged.
+  collapses branching that hides the rule being applied. Also a [BUG] in the diff with
+  a concrete wrong result, and anything marked `no (broken by the change)`, unless it's
+  in a gitignored file: tell the user about those, since no agent edits them.
+- **Follow-up, not now**: a worthwhile change to code the diff doesn't touch, one
+  that's L-sized compared with the change, or one whose Risk users would feel and the
+  fix agent can't check. List it in the PR body with its Risk; the user decides whether
+  it becomes an issue. The agent's approach note goes here too, untriaged.
 - **Drop**: formatting, import order, renaming that's down to taste, comment wording,
   splitting a function that reads fine, micro-optimisations off the hot path,
   speculative generality ("in case we add another backend"), anything that only
-  restyles, and anything justified by a pattern name rather than a concrete cost.
+  restyles, and anything justified by a pattern name rather than a concrete cost. Also
+  anything whose Risk outweighs its Cost today (a slower start for every user to save the
+  next developer an edit), and a design reversal without evidence from the build.
 
-**STRUCTURAL** findings that you accept (apply now or follow-up) go to the user before
-anything is applied (SKILL.md step 3). A finding against a test is never structural.
+**STRUCTURAL** findings, and findings of either kind that **reverse a design decision**,
+go to the user before anything is applied, if you accept them (apply now or follow-up;
+SKILL.md step 3). The user agreed to `design.md`, so a CODE-sized reversal is theirs to
+decide too. A finding against a test is never structural.
+
+Triage each part of a split finding (4a, 4b) on its own, and count it as a finding in the
+tally: typically 4a is accepted and 4b becomes a follow-up. If a finding has no `Risk:` or
+`Design:` line, ask the same agent for it before you triage it.
 
 The agent's tags are input, not a verdict: a HIGH that's really taste is still
 dropped, and a CODE finding that moves module boundaries is structural.

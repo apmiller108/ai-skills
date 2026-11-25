@@ -374,8 +374,11 @@ Spawn the **refactor agent** (general-purpose) with the template in the referenc
 Pass it the state file's `learnings:` verbatim (if Implement was deselected there are
 none, and the agent infers them from the commits), plus the overdrive and critique
 tallies so it doesn't re-raise them. It **reports only, without editing**: numbered
-findings tagged STRUCTURAL or CODE, each with file:line, what to change, its concrete
-cost, what it was learned from, and its size. It ends with an `Approach note:`.
+findings tagged STRUCTURAL or CODE (and BUG where behaviour is wrong), each with
+file:line, what to change, its cost today, the risk of changing it and how to check that,
+whether it reverses a `design.md` decision, what it was learned from, whether it's in the
+diff, and its size. One that's only partly in the diff comes split (4a, 4b). It ends with
+an `Approach note:`.
 
 Check `git status --porcelain` when it returns. If it changed files anyway, show the
 user the diff stat and ask whether to keep the edits or discard them with
@@ -385,18 +388,25 @@ user the diff stat and ask whether to keep the edits or discard them with
 follow-up or drop. Copy the approach note into the follow-ups as it is, unless it's
 "none".
 
-**Structural findings go to the user.** If any accepted finding is STRUCTURAL, set
-`step: 3-refactor-paused`, record those findings in the state file, and show them in
-one block: each finding's what, cost and size, with your proposed disposition (apply
-now if S or M and in the diff, otherwise follow-up). Ask once which to apply, or "all
-as proposed". On a resume at `3-refactor-paused`, show the same block again. Code-level
-findings don't wait for anything but this answer: they go in the same batch.
+**Structural findings and design reversals go to the user.** If any accepted finding is
+STRUCTURAL or reverses a `design.md` decision (CODE ones included), set `step:
+3-refactor-paused`, record all the accepted findings in the state file, and show these in
+one block: each finding's what, cost, risk (with its check) and size, and for a reversal
+the decision and what the build showed, with your proposed disposition (apply now if S or
+M and either in the diff or broken by the change, otherwise follow-up). Ask once which to
+apply, or "all as proposed". On a resume at `3-refactor-paused`, show the same block
+again. The other code-level findings don't wait for anything but this answer: they go in
+the same batch.
 
 Then spawn the **fix agent** (general-purpose) once, with the accepted code-level
-findings and the structural ones the user approved, copied verbatim. When it's done,
-run the lint and unit gate again and commit as `Refactors <change>`. If nothing was
-accepted, skip the commit. Either way, keep a one-line tally (`refactor: 7 findings,
-3 applied (1 structural), 2 follow-ups, 2 dropped`) for the PR body.
+findings and the ones the user approved, copied verbatim with their `Risk:` lines and,
+for a split finding, only the accepted part. Read its report before you commit: an item
+it backed out over its check becomes a follow-up with the numbers (tell the user if they
+approved it), an UNCONFIRMED bug is dropped with a note, and a check that didn't run goes
+in the progress line and the PR body as not run. Then run the lint and unit gate again
+and commit as `Refactors <change>`. If nothing was accepted, skip the commit. Either way,
+keep a one-line tally (`refactor: 7 findings, 3 applied (1 structural), 2 follow-ups, 2
+dropped`) for the PR body.
 
 ## 3a. Polish (agent I, if `Polish` is selected)
 

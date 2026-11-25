@@ -129,12 +129,12 @@ steps drop out of the chain.</sub>
 | Implement | **A** apply | yes | Runs `openspec-apply-change`, works through `tasks.md`, reports LEARNINGS for the refactor step. |
 | Overdrive | **H** overdrive | yes, after you pick | Proposes 2–3 ambitious UI directions; you pick one (or none) and the same agent builds it. |
 | UX critique | **G1** design review ∥ **G2** detector | no | Two isolated assessments run in parallel; the orchestrator cross-checks and keeps only fixes a real user would notice. |
-| Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings. Structural ones are shown to you before they're applied. |
+| Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings, each with the risk of changing it and how to check that. Structural ones, and any that reverse a `design.md` decision, are shown to you before they're applied. |
 | Polish | **I** polish | yes | Refinement within the existing design: spacing, states, token drift, copy fit. |
 | Design audit | **F** design audit | no | `impeccable audit` against the design doc, WCAG AA and the copy guide. |
 | Code review | **D** review | no | Built-in `/code-review` at effort `high` on the PR; only critical bugs are fixed, each with a regression test. |
 | Manual test | **E** / **E-light** | plan only | Full: a verification plan of at most 8 cases, published as a runner. Light: 3–6 checkboxes in the PR body. |
-| *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage. |
+| *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage: a regression test for each behaviour fix, and each finding's risk check, measured. |
 
 The review steps all follow the same loop: a report-only agent, triage in the main
 session against a rubric from `agent-prompts.md`, one fix agent, then the gate:
@@ -149,7 +149,7 @@ sequenceDiagram
   R-->>O: numbered findings (no edits)
   O->>O: git status — revert stray edits
   O->>O: triage: accept / follow-up / drop
-  opt structural refactor findings
+  opt structural refactor findings, design reversals
     O->>U: proposed dispositions
     U-->>O: which to apply
   end
