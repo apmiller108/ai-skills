@@ -36,15 +36,16 @@ orchestrator's context small, so keep it in.
 ## Shared blocks
 
 Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`,
-`<removed-names>` (A, B and C) and `<report-lines>` in its prompt with the full text of
-these blocks, their own placeholders filled in. `<gate-form>` inside the first is the code
-block at the top of SKILL.md, with the log at `<agent-dir>/<gate>.log`. A prompt that still
-contains any of these placeholders isn't ready to send. Agent H has two reports, so it
-gets the report lines twice.
+`<removed-names>` (A, B and C), `<artifact-rules>` (the agents that change code: A, C, H
+and I) and `<report-lines>` in its prompt with the full text of these blocks, their own
+placeholders filled in. `<gate-form>` inside the first is the code block at the top of
+SKILL.md, with the log at `<agent-dir>/<gate>.log`. A prompt that still contains any of
+these placeholders isn't ready to send. Agent H has two reports, so it gets the report
+lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
-`C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`. Create it with plain
+`C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`, `C-artifacts`. Create it with plain
 `mkdir` just before spawning. If it exists, it belongs to an earlier spawn: use
 `<name>-2`, then `-3`. An agent continued with `SendMessage` keeps its folder.
 
@@ -114,6 +115,18 @@ A hit counts when the change broke it. History that should keep the old name (pa
 migrations, changelogs) doesn't. A gitignored file is the user's: report it, don't edit it.
 ```
 
+`<artifact-rules>`:
+
+```
+Change artifacts: openspec/changes/<change>/ has to describe the code you leave behind. If
+you depart from a decision recorded in design.md, or an item you were given changes one,
+update design.md (proposal.md if there is none), and the specs and tasks.md where
+affected, and say there what changed and why. That's always in scope, whatever files or
+items this prompt limits you to. What the change must do isn't yours to loosen: a spec
+requirement or a task's stated check changes only if the user or an accepted item says
+so; otherwise report it. One DEVIATIONS line per departure, outside the word cap.
+```
+
 `<report-lines>`:
 
 ```
@@ -140,7 +153,8 @@ Project rules:
 
 You can't talk to the user. Where the skill says to pause and ask (an unclear task,
 a design problem in the proposal, a blocker), stop and report it as BLOCKED instead
-of guessing. You may be resumed with an answer.
+of guessing. You may be resumed with an answer. Another mechanism for the same behaviour
+isn't a blocker; it's a deviation (Change artifacts, below).
 
 Once the code is written, and before the checks, fix every hit of this search:
 
@@ -152,6 +166,8 @@ One you're sure was there before this change: leave it, and report it under TEST
 
 <standing-rules>
 
+<artifact-rules>
+
 Report (≤400 words):
 STATUS: DONE | BLOCKED
 TASKS: <n>/<m> checked
@@ -159,8 +175,9 @@ FILES: <changed paths, grouped by area>
 SUMMARY: <one line, what the change does>
 TESTS: <specs added or changed; result of the runs>
 BLOCKED ON (if blocked): <the question, the options you see, and which you'd pick>
-NOTES: <anything the orchestrator must know: artifact edits, deviations from the proposal,
-  stale names in gitignored files>
+DEVIATIONS: <what the artifact said; what you built and why; file and section updated>, or "none"
+NOTES: <anything else the orchestrator must know, such as stale names in gitignored
+  files>
 LEARNINGS (≤150 words, bullets): what building this taught you that the proposal
   didn't know. Where you deviated from design.md and why; what turned out harder or
   different than planned; workarounds you left in; approaches you tried and abandoned
@@ -266,7 +283,7 @@ manual-test failures. Give it only what was accepted.
 
 ```
 On branch `<change>` in <repo>, apply exactly these accepted
-items, and nothing else:
+items, and nothing else except the artifact updates they call for:
 
 <accepted items, verbatim from the finding report or user's failure description>
 
@@ -286,19 +303,22 @@ Rules:
   numbers.
 - An item includes every use of what it removes or renames: when you've edited, run the
   "Removed names" search below on your own edits (`git diff HEAD`).
-- Don't widen the scope beyond that. If a fix needs a change outside these items,
-  report it instead of making it.
+- Don't widen the scope beyond that and the change artifacts. If a fix needs any other
+  change, report it instead of making it.
 - Don't commit. Finish with `<lint>` and `<test>`; both must pass.
 
 <standing-rules>
 
 <removed-names>
 
+<artifact-rules>
+
 Report (≤250 words):
 APPLIED: <item numbers, one line each on what changed>
 UNCONFIRMED / SKIPPED: <item numbers and why>
 TESTS: <item number and its regression test, or why it has none>
 CHECKS: <item number: result of its Risk check, with the numbers, or "not run" and why>
+DEVIATIONS: <what the artifact said; what it is now and why; file and section updated>, or "none"
 FILES: <changed paths>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
@@ -606,10 +626,13 @@ in the running app: start `<ui.run>` in the background and screenshot into <agen
 as <ui.view> describes, at most two fix rounds, then stop the app. Finish with
 `<lint>` and `<test>`.
 
+<artifact-rules>
+
 Phase 2 report (≤200 words):
 BUILT: <what, one line>
 FILES: <changed paths>
 VERIFIED: <states screenshotted, or why not>
+DEVIATIONS: <what the artifact said before your direction; what it is now; file and section>, or "none"
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
 ```
@@ -644,8 +667,11 @@ where polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
 
 <standing-rules>
 
+<artifact-rules>
+
 Report (≤250 words):
 EDITS: <file>:<line>: <what changed and why, one line each>
+DEVIATIONS: <what the artifact said; what it is now and why; file and section updated>, or "none"
 NOT CHANGED: <what you'd change but didn't, and why: redesign, out of scope, needs a decision>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>

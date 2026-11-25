@@ -127,6 +127,8 @@ review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
 denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
+deviations: |         # every DEVIATIONS line, with its step
+  - apply (A): polling instead of a file watcher, watcher misses network drives; design.md "Change detection"
 pre-existing: e2e/export.spec "keeps tags": 2/2 on base 6521867, timeout at save   # or "flaky"
 leftovers: apply (A): /tmp/fixture.db from scripts/seed.sh   # outside the agent's folder, or still running
 waiting-on: user runs manual plan in the runner
@@ -281,6 +283,13 @@ says (section 0):
 - A step that was skipped, or whose findings were all dropped, changed nothing and runs
   no gate.
 
+## Deviations
+
+Record every `DEVIATIONS:` line in the state file as you read the report; step 7 checks
+them against the artifacts. A departure that only shows up under LEARNINGS, NOTES, APPLIED
+or EDITS goes back to the agent to write up. One that loosens what the specs require goes to
+the user before you commit it, unless it's what they approved.
+
 ## 1. Branch off the base
 
 ```bash
@@ -434,7 +443,7 @@ token drift, copy fit), and its fixes are too small to triage one by one. It rep
 it changed and what it would have changed but didn't (a redesign, anything outside the
 changed files).
 
-Check `git status --porcelain` as in step 3b, and restore `PRODUCT.md`, the design doc
+Check `git status --porcelain` as in step 3b (the change's own artifacts are fine), and restore `PRODUCT.md`, the design doc
 and impeccable config without asking. Run the gate and commit as `Polishes <change>`.
 Anything it flagged but didn't change becomes a follow-up. Tally: `polish: 6 edits in 2
 files, 1 follow-up`.
@@ -603,6 +612,10 @@ agent as in "Failures" above; after the fix, the user re-ticks it. Tally:
 Only after the user confirms, and the manual plan has passed: the runner's results
 (full), every PR checkbox ticked (light), or nothing to wait for (none). Read the first
 two back as in step 6 rather than taking it on trust.
+
+Before archiving, check each line of `deviations:` against the section it names (read only
+that section). If the artifact doesn't describe what shipped, or the section is gone, the
+fix agent (`C-artifacts`) updates it, in a commit of its own.
 
 1. Run the `openspec-archive-change` skill for the change here in the main session. It
    asks questions, and it's small. It syncs the delta specs into `openspec/specs/`.

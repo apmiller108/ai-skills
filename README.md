@@ -163,6 +163,9 @@ sequenceDiagram
   O->>O: commit, record tally for the PR body
 ```
 
+An agent that departs from a recorded decision updates `design.md` in the same pass and
+reports it; step 7 checks each reported deviation before the change is archived.
+
 Progress is kept in a state file at `.git/openspec-ship/<change>.md` (local, never
 committed), so a run that stops for days — waiting on a question or a manual test pass —
 resumes at the right step with the same pipeline.
