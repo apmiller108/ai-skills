@@ -148,6 +148,7 @@ Once the code is written, and before the checks, fix every hit of this search:
 
 When the tasks are done, run `<lint>` and the unit specs covering what you
 touched (<if test_paths: `<test_paths>`; otherwise: `<test>`>), and fix any failures.
+One you're sure was there before this change: leave it, and report it under TESTS.
 
 <standing-rules>
 

@@ -11,7 +11,8 @@ user to write YAML. Draft it yourself:
 
 1. Read what the repo already says:
    - `package.json` scripts, `Makefile`, `justfile`, `Taskfile.yml`, `pyproject.toml`,
-     `Cargo.toml`: lint, test and slower full-suite commands.
+     `Cargo.toml`: lint, test and slower full-suite commands, and how each runs only some
+     specs.
    - `.github/workflows/` (or other CI config): which commands CI runs, so the local gate
      matches it.
    - `CLAUDE.md` / `AGENTS.md`: gotchas, code style, vocabulary rules. Copy the ones an
@@ -60,6 +61,7 @@ commands:
   test: npm test          # required: the unit suite, same gate
   test_paths: npx vitest run <paths>   # optional: run only some specs (apply agent)
   full: npm run test:e2e  # optional: slow suite, run before the PR (in the background)
+  full_specs: npx playwright test <specs>   # optional: run only some of `full` (baseline check)
 
 # A command with several parts joins them with && only. In `a && b; c` a failing `a` is
 # lost, and nothing can recover it.
@@ -128,6 +130,7 @@ targets), since a copy in an isolated profile can still reach the real files.
 | Key | Used by |
 |---|---|
 | `commands.lint`, `commands.test` | every spec gate; every agent that edits |
+| `commands.test_paths`, `commands.full_specs` | `<paths>` and `<specs>` become the spec files: agent A (`test_paths`), and the baseline check on a failing gate. Without them the whole suite runs |
 | `safety` | pasted into every agent prompt (in `<standing-rules>`); the orchestrator's own gates and app runs; the steps agents E and E-light and `verification-plan` write for the user |
 | `commands.full`, `full_after_changes_in` | the pre-PR gate, and re-runs after later fixes |
 | `ui.*` | the menu (UI review question), agents F, G1, G2, H, I |

@@ -127,6 +127,7 @@ review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
 denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
+pre-existing: e2e/export.spec "keeps tags": 2/2 on base 6521867, timeout at save   # or "flaky"
 leftovers: apply (A): /tmp/fixture.db from scripts/seed.sh   # outside the agent's folder, or still running
 waiting-on: user runs manual plan in the runner
 usage: |              # written by scripts/usage.mjs --save; keep it last
@@ -271,6 +272,12 @@ says (section 0):
   the change.
 - **Before the PR**, whatever was selected: lint, test and `<full>` (step 4).
 - **After a fix touching `<full_after_changes_in>`**, once the PR exists: `<full>` again.
+- **When a gate fails**, ask whether the branch caused it before sending it to anyone. For
+  **every `<full>` failure**, in step 4 or any later re-run, read
+  `references/baseline-check.md` and follow it first. For lint and unit, only when the
+  failure looks unrelated: nothing in `git diff --stat <base>...HEAD` (plus uncommitted
+  files) touches the failing file or what it tests, or the agent says so. That file also
+  says when a gate with known failures still counts as green.
 - A step that was skipped, or whose findings were all dropped, changed nothing and runs
   no gate.
 
@@ -459,8 +466,9 @@ accepted findings with the fix agent, run the lint and unit gate, and commit as
 
 Run the whole local gate before anyone else looks at the branch: `<lint>`, `<test>` and,
 if configured, `<full>`, each in the gate form. Run `<full>` whatever the change is. It's usually slow, so run it with
-`run_in_background` and wait to be notified. If it fails, give the failures to a fix
-agent, re-run, and commit as `Fixes <what>`.
+`run_in_background` and wait to be notified. If it fails, do the baseline check
+("Spec gates"); failures the change caused go to a fix agent. Re-run, and commit as
+`Fixes <what>`.
 
 Then push and open the PR against the base:
 
@@ -476,7 +484,8 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 
 <2–4 bullets: what the change does, in user-visible terms where it has any>
 
-**Checks:** <lint, unit, full> pass locally.
+**Checks:** <lint, unit, full> pass locally<, except the ones below>.
+**Already failing before this change:** <spec, counts on base and commit, "flaky" if so; what CI says about it. Leave the line out if none>
 **Overdrive:** <direction built, "none chosen", or "skipped (…)">.
 **UX critique:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
 **Refactor:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
@@ -503,7 +512,7 @@ steps 2a–3b. If a finding is severe but you doubt it, have the fix agent confi
 fixing. A finding it can't confirm gets dropped, with a note.
 
 Fix accepted findings with the fix agent, which also adds a regression test for each bug.
-Gate: lint and unit, plus `<full>` if any fix touches `<full_after_changes_in>`. Commit as
+Gate: as in "Spec gates", `<full>` included if it applies. Commit as
 `Fixes <what> from review`, push, and change the PR body's **Review:** line to the tally
 (`3 findings, 1 critical fixed, 2 dropped`).
 
@@ -602,6 +611,10 @@ two back as in step 6 rather than taking it on trust.
    green. If anything fails, fix it and push again; don't merge red. A repo with no CI
    checks exits non-zero with "no checks reported", and that's fine; a repo that has CI
    says the same just after a push, so wait and run it again.
+   For `pre-existing:` specs CI is the only check, so confirm it ran them; if it
+   didn't, nothing covers them and the user decides. Being on that list doesn't excuse a
+   red: a listed spec failing in CI blocks the merge too, unless the user, told which, says
+   to merge with it red (record that in the PR body).
 4. Merge with the configured method: `gh pr merge <n> --<merge>`.
 5. Switch back with `git switch <base> && git fetch origin <base> && git merge --ff-only
    origin/<base>`, and report the merge commit in one line.
@@ -639,6 +652,7 @@ Overdrive: <direction>   Critique: <tally>   Refactor: <tally>   Polish: <tally>
 Design: <tally>   Review: <tally>   Manual: <tally>
 Test plan: <runner url (full), "PR checklist" (light), or "none">
 Denied: <command and what was decided, one per line; leave out if none>
+Already failing: <pre-existing and flaky specs, and what CI says; leave out if none>
 Leftovers: <paths and processes outside the agents' folders; leave out if none>
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
 Usage: <the usage table, or "unavailable">

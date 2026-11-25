@@ -31,6 +31,7 @@ plugins/openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
     │   ├── references/
     │   │   ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
+    │   │   ├── baseline-check.md        was a failing spec already failing on the base?
     │   │   └── config.md                every key of .claude/openspec-ship.yaml
     │   ├── scripts/usage.mjs            token usage per agent, from the session transcripts
     │   └── scripts/usage.test.mjs       its tests (node --test)
@@ -93,7 +94,9 @@ to its own scratch folder.
 The run opens with one menu where you toggle the optional steps and pick the manual
 test plan. Branch, PR and merge always run; specs (lint + unit) run after every step
 that changes code, and red is never committed. Every gate keeps its own exit code, in the
-background too; its output goes to a log and only the tail is read.
+background too; its output goes to a log and only the tail is read. A full-suite failure is
+first reproduced on the base, in a throwaway worktree: one that was already there is named
+in the PR and left to CI, which still has to be green.
 
 ```mermaid
 flowchart TD
