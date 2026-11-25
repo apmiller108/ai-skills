@@ -1,6 +1,6 @@
 {
   "name": "openspec-ship",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Ship an OpenSpec change from proposal to merged PR: implement, hindsight refactor, design passes, code review, manual test plan, archive and merge.",
   "author": { "name": "Alex Miller" },
   "repository": "https://github.com/apmiller108/ai-skills",
