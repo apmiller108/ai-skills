@@ -27,9 +27,10 @@ context small by design:
   ) > "$LOG" 2>&1; rc=$?; tail -n 40 "$LOG"; exit $rc
   ```
 
-  One gate per Bash call, whole, because shell state doesn't carry over. Give each run its own log (`…-4-full.log`, then `…-4-full-2.log`), so a background
-  run never shares one. With `run_in_background` the form is the same, and the
-  notification's exit code is the verdict. If the tail isn't enough, search the log.
+  One gate per Bash call, whole, because shell state doesn't carry over. Give each run its
+  own log (`…-4-full.log`, then `…-4-full-2.log`), so a background run never shares one.
+  With `run_in_background` the form is the same, and the notification's exit code is the
+  verdict. If the tail isn't enough, search the log.
 - Ask every agent for a capped report. The templates in
   `references/agent-prompts.md` already do.
 - When an agent stops on a question, get the answer from the user and continue the
@@ -504,9 +505,9 @@ agent returns, as in step 3. Also make sure it didn't write `PRODUCT.md`, the de
 or impeccable config. Restore those with `git restore` without asking. They're out of
 scope for a ship.
 
-**Triage** with the design rubric in the reference. Fix accepted findings with the fix agent, run the lint and unit gate, and commit as
-`Fixes <what> from design audit`. Keep a one-line tally (`design: 5 findings, 2 fixed,
-1 follow-up, 2 dropped`) for the PR body.
+**Triage** with the design rubric in the reference. Fix accepted findings with the fix
+agent, run the lint and unit gate, and commit as `Fixes <what> from design audit`. Keep a
+one-line tally (`design: 5 findings, 2 fixed, 1 follow-up, 2 dropped`) for the PR body.
 
 ## 4. Full suite, then the PR
 
@@ -563,13 +564,14 @@ Spawn the **review agent** (general-purpose). It invokes the built-in `code-revi
 at effort `high` against the PR number and sends back the findings as text.
 
 **Triage** with the critical-bug rubric in the reference, plus the project's `critical`
-list. Fix critical bugs and drop everything else. If a finding is severe but you doubt it, have the fix agent confirm it before
-fixing. A finding it can't confirm gets dropped, with a note.
+list. Fix critical bugs and drop everything else. If a finding is severe but you doubt it,
+have the fix agent confirm it before fixing. A finding it can't confirm gets dropped, with
+a note.
 
 Fix accepted findings with the fix agent, which also adds a regression test for each bug.
 Gate: as in "Spec gates", `<full>` included if it applies. Commit as
-`Fixes <what> from review`, push, and set the PR body's **Review:** line (step 4) to the tally
-(`3 findings, 1 critical fixed, 2 dropped`).
+`Fixes <what> from review`, push, and set the PR body's **Review:** line (step 4) to the
+tally (`3 findings, 1 critical fixed, 2 dropped`).
 
 ## 6. Manual test plan (per `manual-plan:`)
 
