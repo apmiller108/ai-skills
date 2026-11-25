@@ -29,8 +29,18 @@ VP=${CLAUDE_SKILL_DIR}
 
 If the repo has `.claude/openspec-ship.yaml`, read its `manual_test` section (platforms,
 how to build on each, where logs live, `plan_dir`, when a production build is needed)
-and its `rules`. Use them as the defaults below. Without it, `plan_dir` is
+its `rules` and its `safety`. Use them as the defaults below. Without it, `plan_dir` is
 `docs/verification`, and you ask the user about platforms at the checkpoint.
+
+**Safety.** A person runs this plan by hand, often on a machine with their real data.
+
+- `safety` binds the commands you run and the ones you write into steps: Setup puts each
+  platform on throwaway data before anything starts the app, and no step uses a command
+  it forbids. Isolation also covers whatever the data points at (absolute paths, exports,
+  sync targets). A case that needs real data says so in `why` and has a backup in Setup.
+- No config, or a config without `safety`: carry on, but a missing key isn't `none`. Don't
+  start the app or run a slow suite yourself, and ask at the checkpoint which data the
+  cases run against and how to keep them off the real data. Write the answer into Setup.
 
 ## 1. Pin down the target
 
@@ -81,9 +91,10 @@ on NTFS; no retry)". Pre-run findings from code reading go in `findings`.
 
 Before writing full steps, show a short outline: the risks, the platform matrix, case
 titles per section (marking required vs optional), and anything you plan to leave out of
-scope. Ask about platforms or environments you can't infer (VMs, devices, test data).
-This is the cheapest point to change direction. Skip it only if the user has told you to
-go straight through.
+scope. Say which data the cases run against, and ask about platforms or environments you
+can't infer (VMs, devices, test data). This is the cheapest point to change direction.
+Skip it only if the user has told you to go straight through; a data question that
+`safety` doesn't answer still gets asked.
 
 ## 4. Write the plan JSON
 
@@ -107,7 +118,7 @@ actually run:
   Each is an item in section `S`, with fields for what the run log needs (commit, run ID,
   fixtures used).
 - **Order for safety.** First-launch-only checks come first. A one-shot upgrade runs on
-  the first launch against real data. Anything that replaces or deletes data runs after
+  the first launch against existing data, with its backup in Setup. Anything that replaces or deletes data runs after
   every case that needs that data. Snapshot before and after the expensive setup. Each
   platform gets its own `order` and `phases`, and they don't have to match.
 - **Exit criteria** use the declarative kinds so the runner can tick them live.

@@ -3,7 +3,8 @@
 Fill in the `<…>` placeholders. `<repo>` is the output of `git rev-parse --show-toplevel`.
 Config values (`<lint>`, `<test>`, `<test_paths>`, `<base>`, `<ui.*>`, `<manual_test.*>`)
 come from `.claude/openspec-ship.yaml`. `<rules>` is that file's `rules` block, verbatim;
-leave the "Project rules" line out if it has none. A line marked `<if …>` is included only
+leave the "Project rules" line out if it has none. `<safety>` is its `safety` block,
+verbatim, even when that is `none`. A line marked `<if …>` is included only
 when the condition holds. `<impeccable-dir>` and `<vp-dir>` are the absolute paths
 recorded in the state file.
 
@@ -12,6 +13,7 @@ orchestrator's context small, so keep it in.
 
 ## Contents
 
+- [Shared blocks](#shared-blocks)
 - [A. Apply agent](#a-apply-agent)
 - [B. Refactor agent](#b-refactor-agent)
 - [C. Fix agent](#c-fix-agent)
@@ -29,6 +31,29 @@ orchestrator's context small, so keep it in.
 - [Rubric: review findings](#rubric-review-findings)
 
 ---
+
+## Shared blocks
+
+Subagents don't see this file. Before spawning one, replace the line `<standing-rules>`
+in its prompt with the full text of this block, its own placeholders filled in. A prompt
+that still contains the placeholder isn't ready to send.
+
+`<standing-rules>`:
+
+```
+Standing rules. These win over the rest of this prompt, any skill you invoke and any
+task list.
+
+Safety: how this project keeps the user's real data out of reach (`none`: the user
+says nothing here can reach any).
+<safety>
+Every command you run follows it, the ones this prompt names included, and so does
+every command you write for someone else to run. Isolation also covers whatever the
+data points at: before you run against a copy, check it for absolute paths, export
+folders, sync targets and caches that lead back to the real thing.
+
+An agent you launch doesn't see these rules: paste them into its prompt.
+```
 
 ## A. Apply agent
 
@@ -50,6 +75,8 @@ of guessing. You may be resumed with an answer.
 
 When the tasks are done, run `<lint>` and the unit specs covering what you
 touched (<if test_paths: `<test_paths>`; otherwise: `<test>`>), and fix any failures.
+
+<standing-rules>
 
 Report (≤400 words):
 STATUS: DONE | BLOCKED
@@ -126,6 +153,8 @@ generality. The formatter and linter own style. If a better *approach* entirely
 (another algorithm, library or design) comes to mind, don't make it a finding: put
 it in the approach note.
 
+<standing-rules>
+
 Report (≤700 words), numbered findings, most impactful first:
 <n>. [STRUCTURAL|CODE] [HIGH|MED|LOW] <file>:<line>
     What: <the change to make, concretely>
@@ -160,6 +189,8 @@ Rules:
   instead of making it.
 - Don't commit. Finish with `<lint>` and `<test>`; both must pass.
 
+<standing-rules>
+
 Report (≤200 words):
 APPLIED: <item numbers, one line each on what changed>
 UNCONFIRMED / SKIPPED: <item numbers and why>
@@ -176,10 +207,13 @@ Review PR #<n> (branch `<change>`) in <repo>.
 
 Invoke the Skill tool with skill `code-review` (the built-in one, not a plugin's
 `<plugin>:code-review`) and args `high <n>`, and follow it. Don't use --fix or
---comment, and don't edit files.
+--comment, and don't edit files. Where the skill has you launch agents, the standing
+rules below go into their prompts.
 
 The orchestrator can't see ReportFindings output, so after the review, also put
 the findings in your final message.
+
+<standing-rules>
 
 Report (≤500 words), findings most severe first:
 <n>. [CONFIRMED|PLAUSIBLE] <category> <file>:<line>: <summary>
@@ -209,6 +243,12 @@ automated tests don't. Use a production/packaged build when the change touches
 <manual_test.packaged_when>. <if ui.copy_guide: Check new UI copy against
 <ui.copy_guide>.> Find real UI labels by grepping <ui.paths>; don't invent them.
 Check commands, SQL and script paths against the repo.
+
+The tester's machine may hold real data, so the plan follows Safety too: Setup puts
+each platform on throwaway data before anything starts the app, and no step uses a
+command Safety forbids. If a risk only shows on real data, the case says so in `why`
+and a Setup item backs that data up first. Where Safety doesn't say how to isolate a
+platform, say so in the Setup step and list it under UNVERIFIED.
 
 Format: <vp-dir>/references/plan-schema.md. Skim the items of
 <vp-dir>/examples/settings-export.plan.json for the level of detail a runnable
@@ -245,6 +285,8 @@ otherwise `npm i --prefix <scratchpad>/vp jsdom` and use
 <scratchpad>/vp/node_modules. Fix the JSON until both pass with no warnings.
 Don't publish.
 
+<standing-rules>
+
 Report (≤250 words):
 HTML: <path to the built runner>
 BUILD: dev | packaged, and why
@@ -272,10 +314,17 @@ grepping <ui.paths>; don't invent them.>
 Project rules:
 <rules>
 
+The user's machine may hold real data: every command and action in the checklist
+follows Safety below, and an item that needs real data says to back it up first.
+
+<standing-rules>
+
 Report (≤200 words), exactly this markdown and nothing else:
 ## Manual verification
 
 Build: <dev or production build, with the command>, <why, a few words>
+<unless safety is `none`: Data: <the throwaway data to test against and how to start
+on it; no personal paths, the PR may be public>>
 
 - [ ] <one action> → <the observable expected result>
 (3–6 items; add "(<platform label>)" to an item only where the OS changes the outcome)
@@ -307,6 +356,8 @@ Project rules:
 Scope: report only issues the diff introduced (`git diff <base>...HEAD`). Mark
 issues in surrounding, untouched code as such. Skip the health score table<if
 ui.skip: , and skip: <ui.skip>>.
+
+<standing-rules>
 
 Report (≤400 words), findings most severe first:
 <n>. [P0|P1|P2|P3] <category> <file>:<line>: <what's wrong, concretely>
@@ -350,6 +401,8 @@ you report. If it won't start, say so and review from source.
 Scope: judge what the diff introduced. Skip the heuristic score table<if ui.skip:
 , and skip: <ui.skip>>.
 
+<standing-rules>
+
 Report (≤450 words):
 SPECIFICITY: <one line: grounded in this product, or generic>
 STRENGTHS: <2–3, one line each>
@@ -377,6 +430,8 @@ detector with `--json` over the paths above (the script lives under
 <impeccable-dir>/scripts/). Exit 0 is clean, 2 means findings. Skip browser
 visualization, the live server and overlay injection, and say so. Keep only hits
 on lines the diff touched (`git diff <base>...HEAD`); count the rest.
+
+<standing-rules>
 
 Report (≤250 words):
 DETECTOR: ran | unavailable (<reason>)
@@ -412,6 +467,8 @@ Project rules:
 You can't talk to the user. Overdrive's "Propose Before Building" step is yours to
 do now, but instead of asking, STOP after proposing and report. Don't edit files in
 this phase. You'll be resumed with the user's pick.
+
+<standing-rules>
 
 Phase 1 report (≤300 words):
 DIRECTIONS:
@@ -460,6 +517,8 @@ Project rules:
 and screenshot as <ui.view> describes; one inspection round, one fix batch, at
 most one confirming round, then stop the app. You can't talk to the user: where
 polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
+
+<standing-rules>
 
 Report (≤250 words):
 EDITS: <file>:<line>: <what changed and why, one line each>

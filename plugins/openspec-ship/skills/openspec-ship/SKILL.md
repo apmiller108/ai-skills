@@ -23,7 +23,8 @@ context small by design:
   **same** agent with `SendMessage`, so it keeps its context and you don't repeat it.
 
 Read `references/agent-prompts.md` before spawning the first agent. It has the prompt for
-each agent and the rules for what to accept and what to reject.
+each agent, the shared blocks you expand into every prompt, and the rules for what to
+accept and what to reject.
 
 ## 0. Config and prerequisites
 
@@ -31,6 +32,18 @@ each agent and the rules for what to accept and what to reject.
 draft it as described in `references/config.md` and get the user's OK before going on.
 Below, `<lint>`, `<test>`, `<full>`, `<base>`, `<ui.paths>` and so on mean the values from
 that file, and `<rules>` is its `rules` block, pasted into every agent prompt.
+
+**Safety.** `safety` is a required key: how to run this project without touching the
+user's real data. If the config lacks it or it's empty, **stop**, also when resuming a
+change already in flight. Draft a proposal as `references/config.md` describes, show it
+and wait for the user's answer. Until it's in the file, don't run the config's commands,
+start the app, or spawn or continue an agent. Don't settle it yourself: `none` is a valid
+answer only when the user gives it.
+
+It binds your own commands as much as the agents': `<lint>`, `<test>`, `<full>` and
+`<ui.run>` always mean the command run the way `safety` says, and isolation also covers
+whatever the data points at (absolute paths, exports, sync targets). If `safety` forbids a
+command a step needs, ask the user instead of running it.
 
 **Prerequisites.** Check these once per run and record what's missing in the state file:
 
@@ -90,7 +103,12 @@ manual: 4/6 required pass, 1 fail (A3)
 waiting-on: user runs manual plan in the runner
 ```
 
-On invocation, read the file if it exists and resume after its `step`, with its
+On invocation, check the config as in section 0 first: an in-flight change can have a
+config from before `safety` was required. When you add it there, send the expanded
+standing rules along with your message to any agent you continue. If a manual plan is
+already out, ask the user to hold off and have agent E or E-light revise it.
+
+Then read the state file if it exists and resume after its `step`, with its
 `pipeline:` (don't show the menu again unless the user asks to change it; a state file
 without `pipeline:` predates the menu, so treat it as every step on). Paths recorded in a
 state file can go stale after a plugin update: re-resolve `vp-dir` and `impeccable-dir`
@@ -162,6 +180,8 @@ or record the UI steps as `skipped (no UI changes)`.
 
 Specs aren't optional and don't need to be asked for:
 
+Run every gate the way `safety` says (section 0).
+
 - **After every step that changes code** (apply, overdrive, polish, or the fix agent for
   critique, refactor, audit, review or manual-test findings): `<lint>` and `<test>`,
   trimmed as in step 2. Red never gets committed; failures go back to the agent that made
@@ -182,7 +202,7 @@ Don't use `git pull`: with `pull.rebase=true` it refuses to run with any uncommi
 change in the tree. Fast-forward with `git merge --ff-only origin/<base>`.
 
 - If the working tree has changes outside `openspec/changes/<change>/` (and a config file
-  you just drafted), stop and ask. Don't stash someone's work silently.
+  you just drafted or added `safety` to), stop and ask. Don't stash someone's work silently.
 - Create the branch from an up-to-date base, named exactly after the change:
   `git switch <base> && git merge --ff-only origin/<base> && git switch -c <change>`.
 - If the proposal exists only as uncommitted files, they come along on the switch. Commit
@@ -257,8 +277,8 @@ skipped (no UI changes)` and move on.
 Subagents can't spawn their own, so you spawn both, in parallel, in one message:
 
 - **G1, design review**: reads the changed components and looks at the running app,
-  started with `<ui.run>` and inspected as `<ui.view>` describes. It stops the app before
-  reporting.
+  started with `<ui.run>` under `safety` and inspected as `<ui.view>` describes. It stops
+  the app before reporting.
 - **G2, detector**: runs impeccable's detector over the changed UI paths.
 
 Neither edits files. You do the synthesis critique's own flow would do: line their

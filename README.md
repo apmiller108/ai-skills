@@ -30,7 +30,7 @@ plugins/openspec-ship/
     ├── openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
     │   └── references/
-    │       ├── agent-prompts.md         prompt template per subagent + triage rubrics
+    │       ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
     │       └── config.md                every key of .claude/openspec-ship.yaml
     └── verification-plan/
         ├── SKILL.md                     analyze → checkpoint → plan JSON → build → publish → read back
@@ -137,7 +137,7 @@ sequenceDiagram
   participant R as Review agent (B / D / F / G)
   participant C as Fix agent C
   participant U as You
-  O->>R: prompt + project rules + prior tallies
+  O->>R: prompt + standing and project rules + prior tallies
   R-->>O: numbered findings (no edits)
   O->>O: git status — revert stray edits
   O->>O: triage: accept / follow-up / drop
@@ -172,7 +172,9 @@ installs a hook, and many repos already vendor it as a project skill.
 
 Each repo gets a committed `.claude/openspec-ship.yaml` with its lint and test commands,
 where UI code lives, how to run and screenshot the app, which platforms to test on, and
-project rules every agent should follow. You don't write it by hand: on the first run the
+project rules every agent should follow. It also needs a `safety` block: how to run the
+app and the suites without touching your real data (`none` is fine, but you have to say
+so; a run stops without it). You don't write it by hand: on the first run the
 skill drafts it from `package.json`, CI config and `CLAUDE.md`, shows it to you, and
 commits it with the change. See
 [`references/config.md`](plugins/openspec-ship/skills/openspec-ship/references/config.md)
