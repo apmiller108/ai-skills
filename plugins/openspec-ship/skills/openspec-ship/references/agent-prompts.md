@@ -158,6 +158,8 @@ Rules:
   If it comes out worse than the line expects, look for a cheaper way to do the same
   thing; failing that, undo your edits for that item and report it as SKIPPED with the
   numbers.
+<if C-manual: - A failure this branch's diff didn't cause: don't fix it. Report it as NOT
+  OURS with the evidence: the code it comes from, and that the base has it too.>
 - An item includes every use of what it removes or renames: when you've edited, run the
   "Removed names" search below on your own edits (`git diff HEAD`).
 - Don't widen the scope beyond that and the change artifacts. If a fix needs any other
@@ -176,7 +178,7 @@ Rules:
 
 Report (≤250 words):
 APPLIED: <item numbers, one line each on what changed>
-UNCONFIRMED / SKIPPED: <item numbers and why>
+UNCONFIRMED / SKIPPED / NOT OURS: <item numbers and why>
 TESTS: <item number and its regression test, or why it has none>
 CHECKS: <item number: result of its Risk check, with the numbers, or "not run" and why>
 DEVIATIONS: <as in Change artifacts>, or "none"
@@ -203,7 +205,8 @@ the findings in your final message.
 <standing-rules>
 
 Report (≤500 words), findings most severe first:
-<n>. [CONFIRMED|PLAUSIBLE] <category> <file>:<line>: <summary>
+<n>. [CONFIRMED|PLAUSIBLE] [PRE-EXISTING, if the base has it too] <category>
+    <file>:<line>: <summary>
     Failure: <concrete input/state → wrong result>
 If there are no findings, say so.
 <report-lines>
@@ -663,8 +666,8 @@ doc, WCAG, the copy guide or the project rules, drop it.
 
 ## Rubric: review findings
 
-Fix only **critical bugs**. A critical bug has a concrete failure scenario with one of
-these outcomes:
+Fix only **critical bugs**, and only ones the change caused, made worse or made easier to
+reach. A critical bug has a concrete failure scenario with one of these outcomes:
 
 - wrong results the user acts on
 - data loss or corruption (database rows, the user's files, saved work)
@@ -677,7 +680,11 @@ these outcomes:
 - a test that passes without testing the behaviour it claims to
 - anything in the project config's `critical` list
 
-Drop: style, naming, readability, missing tests for code that's otherwise correct,
+**Follow-up, not now**: real, with a concrete failure scenario, and one of these: it isn't
+critical; the base has it too and the change doesn't make it worse or easier to reach (tell
+the user straight away if it's critical); or design.md puts it out of scope.
+
+**Drop**: style, naming, readability, missing tests for code that's otherwise correct,
 PLAUSIBLE findings whose failure scenario is vague, and findings settled in steps 2a–3b.
 A PLAUSIBLE finding with a severe, concrete scenario goes to the fix agent marked
 "confirm first".

@@ -18,6 +18,8 @@ Files this skill uses:
 - `references/triage.md`: what to accept, defer and drop, and what the user decides.
 - `${CLAUDE_SKILL_DIR}/../../shared/agent-blocks.md`: the blocks that prompt pastes in, and
   two you follow yourself in step 5.
+- `${CLAUDE_SKILL_DIR}/../../shared/follow-ups.md`: what a follow-up records, and how to
+  offer to file them. Read it once there is one.
 
 ## 0. Project config
 
@@ -55,8 +57,8 @@ Uncommitted work that belongs to the target is part of it: `<diff>` becomes `git
 whether it belongs.
 
 If `$(git rev-parse --git-dir)/openspec-ship/<name>.md` exists and its `step:` isn't
-`7-merged`, a ship is in flight: say which step it's on and ask whether to resume it or run
-this pass outside it. Don't edit that file.
+`7-merged` and it has no `abandoned:` line, a ship is in flight: say which step it's on and
+ask whether to resume it or run this pass outside it. Don't edit that file.
 
 ## 2. Collect the learnings
 
@@ -132,4 +134,10 @@ Follow-ups: <one line each with its Risk, or "none">
 Denied / Leftovers: <leave out if none>
 ```
 
-If there's an open PR for the branch, offer to add the tally and follow-ups to its body.
+If there's an open PR for the branch, offer to add the tally and the follow-ups to its body.
+
+Then, if there are follow-ups, offer to file them as `follow-ups.md` says. There, the code
+to check is the tree as it stands, "Found while shipping" becomes "Found in a hindsight
+review of <target>", with the PR if there is one, and what you settle goes in the report.
+Offer this too when the user applied none. A finding they declined at the checkpoint isn't a
+follow-up unless they say so.
