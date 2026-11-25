@@ -113,6 +113,10 @@ actually run:
 - **Pick `check` or `observe` on purpose.** `observe` is for measurements, probes and
   decisions, and it needs `fields` naming exactly what to record. Use `check` fields
   sparingly, for values the export should carry (paths, counts, commits).
+- **Never make the tester copy a value by hand twice.** When later steps need something
+  the tester finds or creates (a test record's ID, a path, a run ID), record it in a field
+  of the case that produces it, and write `{{S1.track}}` in every step and command that
+  uses it. The runner fills it in. The schema has the rules.
 - **`why`** says in one or two sentences what breaks if this case is skipped.
 - **Setup is cases too**: builds, backups, CI dispatches, VM snapshots, fixture exports.
   Each is an item in section `S`, with fields for what the run log needs (commit, run ID,

@@ -55,17 +55,18 @@
       "plats": { "linux": "req", "mac": "req" }, "risks": ["R1"],
       "why": "The OS dialog is the only path users take, and no spec drives it.",
       "steps": [
-        { "t": "Settings → **Export settings…** → save as `settings.json` on the Desktop." },
-        { "t": "Inspect the file.", "cmd": "jq 'keys' ~/Desktop/settings.json" }
+        { "t": "Settings → **Export settings…** → save as `settings.json` on the Desktop. Record the full path below." },
+        { "t": "Inspect the file.", "cmd": "jq 'keys' \"{{A1.path}}\"" }
       ],
-      "expect": ["A toast says the settings were exported", "The file lists `version` and `preferences`"]
+      "expect": ["A toast says the settings were exported", "The file lists `version` and `preferences`"],
+      "fields": [{ "k": "path", "label": "Export path", "mono": true, "ph": "absolute, e.g. /home/me/Desktop/settings.json" }]
     },
     {
       "id": "A2", "sec": "A", "title": "Overwrite a file that's open elsewhere", "type": "check",
       "plats": { "linux": "opt", "mac": "req" }, "risks": ["R2"],
       "why": "Overwrite behaviour on an open file differs by OS; a silent failure loses the user's export.",
       "steps": [
-        { "t": "Open `~/Desktop/settings.json` in a text editor and leave it open." },
+        { "t": "Open `{{A1.path}}` in a text editor and leave it open." },
         { "t": "Export again to the same path and confirm the overwrite." }
       ],
       "expect": ["Either the file is replaced, or an error names the file", "No `settings.json.tmp` is left on the Desktop"]

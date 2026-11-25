@@ -285,6 +285,9 @@ tests one thing.
 - `covered`: what automated tests already cover, with the test file paths.
 - Every step has commands as `cmd` (copyable) where the tester types anything:
   paths, SQL, shell. `expect` holds observable facts, one per line.
+- A value the tester finds or creates and later steps need (a record's ID, a path) gets a
+  field where it's produced, and `{{ITEM.field}}` wherever it's used, never a made-up placeholder.
+  Setup items are per platform, so list each: `{{SL1.track|SM1.track}}`.
 - `exit`: an `allRequired` criterion and a `failuresResolved` criterion.
 <If resuming with new cases: read the existing plan JSON, append the new items with
 new ids, and never renumber, rename or reuse an existing id or field key.>

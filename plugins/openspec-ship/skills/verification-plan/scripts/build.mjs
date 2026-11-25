@@ -86,6 +86,35 @@ for (const p of plan.platforms || []) for (const m of p.meta || []) {
   const it = (plan.items || []).find(i => i.id === m.item)
   if (!it || !(it.fields || []).some(f => f.k === m.field)) errors.push(`platforms.${p.id}.meta: ${m.item}.${m.field} doesn't exist`)
 }
+// {{ITEM.field}} references. Each must resolve on every platform that shows it, to a field
+// recorded no later than the case that uses it. Anything else in {{ }} is literal text
+// unless it starts like a case id. The runner has its own copy of REF and the lookup.
+const REF = /(?<!\$)\{\{([\w-]+\.[\w-]+(?:\|[\w-]+\.[\w-]+)*)\}\}/g
+const itemById = Object.fromEntries((plan.items || []).map(i => [i.id, i]))
+const onlyFor = (x, p) => !x.only || [].concat(x.only).includes(p)
+const refAlts = spec => spec.split('|').map(a => { const [id, k] = a.split('.'); return { id, k, f: ((itemById[id] || {}).fields || []).find(f => f.k === k) } })
+const isRef = spec => refAlts(spec).some(a => itemById[a.id] || /^[A-Z]+\d+$/.test(a.id))
+function checkRefs(i, text, plats) {
+  for (const [m, spec] of String(text || '').matchAll(REF)) {
+    if (!isRef(spec)) continue
+    const bad = refAlts(spec).filter(a => !a.f)
+    for (const a of bad) errors.push(`${i.id}: ${m}: ${itemById[a.id] ? `${a.id} has no field ${a.k}` : `unknown item ${a.id}`}`)
+    if (bad.length) continue
+    for (const a of refAlts(spec)) if (a.f.kind === 'area') errors.push(`${i.id}: ${m}: ${a.id}.${a.k} is an area field; a value used in steps needs a one-line field`)
+    for (const p of plats) {
+      const src = refAlts(spec).find(a => (itemById[a.id].plats || {})[p] && onlyFor(a.f, p))
+      if (!src) { errors.push(`${i.id}: ${m} has no value on ${p}: add an alternative that applies there ({{A.x|B.x}}), or limit the step with only`); continue }
+      const list = (plan.order && plan.order[p]) || plan.items.map(x => x.id)
+      if (list.indexOf(src.id) > list.indexOf(i.id)) errors.push(`${i.id}: ${m}: ${src.id} runs after ${i.id} on ${p}`)
+    }
+  }
+}
+for (const i of plan.items || []) {
+  const shown = x => Object.keys(i.plats || {}).filter(p => onlyFor(x, p))
+  for (const s of i.steps || []) { checkRefs(i, s.t, shown(s)); checkRefs(i, s.cmd, shown(s)) }
+  for (const e of i.expect || []) checkRefs(i, typeof e === 'string' ? e : e.t, shown(e))
+  for (const [p, t] of Object.entries(i.notes || {})) checkRefs(i, t, (i.plats || {})[p] ? [p] : [])
+}
 const caseCount = (plan.items || []).filter(i => i.sec !== 'S').length
 if (caseCount > maxCases) {
   warn.push(`${caseCount} cases, over the cap of ${maxCases}: remove the ${caseCount - maxCases} covering the least serious risks and report them as cut. Don't merge cases or move them to Setup to get under it`)
@@ -115,6 +144,12 @@ if (resultsDir) {
 
 // ---------- Markdown ----------
 const cell = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
+// The Markdown covers every platform, so a reference shows where its value comes from.
+const refNames = (s, open = '‹', close = '›') => String(s ?? '').replace(REF, (m, spec) => {
+  if (!isRef(spec)) return m
+  const alts = refAlts(spec)
+  return `${open}${alts[0].f.label || alts[0].k} from ${alts.map(a => a.id).join('/')}${close}`
+})
 const date = iso => (iso || '').slice(0, 10)
 function statusCell(item, p) {
   if (!item.plats[p]) return '—'
@@ -130,9 +165,9 @@ function statusCell(item, p) {
   return item.plats[p] === 'opt' ? '○' : ''
 }
 const expectText = i => (i.expect || []).map(e => {
-  if (typeof e === 'string') return e
+  if (typeof e === 'string') return refNames(e)
   const only = e.only ? ` (${[].concat(e.only).map(p => labelOf(p)).join(', ')})` : ''
-  return e.t + only
+  return refNames(e.t) + only
 }).join('; ')
 const labelOf = p => { const x = plan.platforms.find(q => q.id === p); return x.short || x.label }
 const platCols = platIds.map(labelOf)
@@ -174,8 +209,8 @@ for (const [sec, name] of Object.entries(plan.sections || { _: 'Cases' })) {
     md += `**${i.id}. ${i.title}**${i.why ? ` ${i.why}` : ''}\n\n`
     ;(i.steps || []).forEach((s, n) => {
       const only = s.only ? ` *(${[].concat(s.only).map(labelOf).join(', ')})*` : ''
-      md += `${n + 1}. ${s.t}${only}\n`
-      if (s.cmd) md += `   \`\`\`\n${s.cmd.split('\n').map(l => '   ' + l).join('\n')}\n   \`\`\`\n`
+      md += `${n + 1}. ${refNames(s.t)}${only}\n`
+      if (s.cmd) md += `   \`\`\`\n${refNames(s.cmd, '<', '>').split('\n').map(l => '   ' + l).join('\n')}\n   \`\`\`\n`
     })
     md += '\n'
   })

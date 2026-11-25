@@ -132,6 +132,8 @@ ol.steps input[type=checkbox] { width: 18px; height: 18px; margin: 3px 0 0; acce
 .cmd { position: relative; margin-top: 8px; }
 .cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 70px 10px 12px; font: 13px/1.5 var(--mono); overflow-x: auto; white-space: pre; }
 .cmd button { position: absolute; top: 6px; right: 6px; }
+.ref { color: var(--pass); background: var(--pass-soft); border-radius: 4px; padding: 0 3px; }
+.ref.missing { color: var(--obs); background: var(--obs-soft); }
 ul.expect { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 ul.expect li { max-width: 70ch; }
 
@@ -309,6 +311,41 @@ const itemsFor = plat => ORDER[plat].map(id => BY_ID[id]).filter(i => i && i.pla
 const stepsFor = (item, plat) => (item.steps || []).filter(s => onlyFor(s, plat))
 const fieldsFor = (item, plat) => (item.fields || []).filter(f => onlyFor(f, plat))
 const expectFor = (item, plat) => (item.expect || []).map(e => typeof e === 'string' ? { t: e } : e).filter(e => onlyFor(e, plat))
+// {{ITEM.field}} in a step, command, expected result or note shows the value recorded
+// in that case's field on the current platform. {{A.x|B.x}} uses the first that applies.
+const REF = /(?<!\$)\{\{([\w-]+\.[\w-]+(?:\|[\w-]+\.[\w-]+)*)\}\}/g
+function lookup(spec, plat) {
+  for (const alt of spec.split('|')) {
+    const [id, k] = alt.split('.')
+    const item = BY_ID[id]
+    const f = item && item.plats[plat] && fieldsFor(item, plat).find(x => x.k === k)
+    if (f) return { id, label: f.label || k, value: String(field(plat, id, k) ?? '').trim() }
+  }
+  return null
+}
+const refText = r => r.value || `<${r.label} from ${r.id}>`
+const fill = (s, plat) => s.replace(REF, (m, spec) => { const r = lookup(spec, plat); return r ? refText(r) : m })
+// Takes escaped HTML. fillRefs puts the values in, so typing in a field updates them in place.
+const refs = (html, plat) => html.replace(REF, (m, spec) => lookup(spec, plat) ? `<span class="ref" data-ref="${spec}"></span>` : m)
+function missingRefs(list) {
+  const out = new Map()
+  list.filter(r => r && !r.value).forEach(r => out.set(`${r.id} ${r.label}`, r))
+  return [...out.values()]
+}
+function fillRefs() {
+  const all = [...document.querySelectorAll('[data-ref]')].map(el => {
+    const r = lookup(el.dataset.ref, ui.plat)
+    el.textContent = refText(r)
+    el.title = `${r.label}, recorded in ${r.id}`
+    el.classList.toggle('missing', !r.value)
+    return r
+  })
+  const box = document.getElementById('refsMissing')
+  if (!box) return
+  const missing = missingRefs(all)
+  box.hidden = !missing.length
+  box.innerHTML = 'Not recorded yet: ' + missing.map(r => r.id === ui.cur[ui.plat] ? `${esc(r.label)} (in Result below)` : `${esc(r.label)} <button class="chip" data-go="${esc(r.id)}">${esc(r.id)}</button>`).join(', ')
+}
 function toast(msg) {
   const t = document.getElementById('toast')
   t.textContent = msg; t.hidden = false
@@ -387,17 +424,18 @@ function renderItem() {
       ${item.prior && item.prior[plat] ? `<span class="chip prior">Earlier: ${esc(item.prior[plat])}</span>` : ''}
       ${(item.risks || []).map(k => `<span class="chip" title="${esc(RISKS[k])}">${esc(k)}</span>`).join('')}
     </div>`
-  if (item.notes && item.notes[plat]) h += `<div class="note">${md(item.notes[plat])}</div>`
+  if (item.notes && item.notes[plat]) h += `<div class="note">${refs(md(item.notes[plat]), plat)}</div>`
   if (item.why || (item.risks || []).length) {
     h += `<div class="prose">${item.why ? `<p>${md(item.why)}</p>` : ''}${(item.risks || []).length ? `<ul class="risk-list">${item.risks.map(k => `<li><b>${esc(k)}</b>${md(RISKS[k])}</li>`).join('')}</ul>` : ''}</div>`
   }
+  h += `<div class="note" id="refsMissing" hidden></div>`
   if (steps.length) {
     h += `<section class="panel"><h2>Steps</h2><ol class="steps">${steps.map((s, i) => {
       const si = item.steps.indexOf(s)
-      return `<li class="${doneSteps.has(si) ? 'done' : ''}"><input type="checkbox" id="st-${item.id}-${si}" data-step="${si}" ${doneSteps.has(si) ? 'checked' : ''}><div class="txt"><label for="st-${item.id}-${si}"><span class="step-n">${i + 1}</span>${md(s.t)}</label>${s.cmd ? `<div class="cmd"><pre>${esc(s.cmd)}</pre><button class="btn small" data-copy="${esc(s.cmd)}">Copy</button></div>` : ''}</div></li>`
+      return `<li class="${doneSteps.has(si) ? 'done' : ''}"><input type="checkbox" id="st-${item.id}-${si}" data-step="${si}" ${doneSteps.has(si) ? 'checked' : ''}><div class="txt"><label for="st-${item.id}-${si}"><span class="step-n">${i + 1}</span>${refs(md(s.t), plat)}</label>${s.cmd ? `<div class="cmd"><pre>${refs(esc(s.cmd), plat)}</pre><button class="btn small" data-copy="${esc(s.cmd)}">Copy</button></div>` : ''}</div></li>`
     }).join('')}</ol>${log && /\blogs?\b|\.log\b/i.test(JSON.stringify(steps.map(s => s.t))) ? `<p class="stamp" style="margin:10px 0 0">Log: ${md(log)}</p>` : ''}</section>`
   }
-  if (expect.length) h += `<section class="panel"><h2>Expected</h2><ul class="expect">${expect.map(e => `<li>${md(e.t)}</li>`).join('')}</ul></section>`
+  if (expect.length) h += `<section class="panel"><h2>Expected</h2><ul class="expect">${expect.map(e => `<li>${refs(md(e.t), plat)}</li>`).join('')}</ul></section>`
 
   h += `<section class="panel result"><h2>Result</h2>
     <div class="verdicts" role="group" aria-label="Result">${VERDICTS[item.type].map(([v, l, k]) => `<button class="verdict v-${v}" data-verdict="${v}" aria-pressed="${r.status === v}">${l} <kbd>${k}</kbd></button>`).join('')}</div>
@@ -415,6 +453,7 @@ function renderItem() {
     <button class="btn primary" data-nav="1">${idx === list.length - 1 ? 'Summary →' : 'Next →'}</button>
   </div>`
   document.getElementById('view').innerHTML = h
+  fillRefs()
 }
 
 function fieldHtml(item, f, r) {
@@ -529,8 +568,8 @@ function buildExport(only) {
   return out
 }
 
-async function copyText(text, el) {
-  try { await navigator.clipboard.writeText(text); toast('Copied') }
+async function copyText(text, el, msg = 'Copied') {
+  try { await navigator.clipboard.writeText(text); toast(msg) }
   catch {
     const ta = el || document.getElementById('exportText')
     if (ta) { ta.value = text; ta.focus(); ta.select(); toast('Selected. Press Ctrl/⌘+C') }
@@ -551,7 +590,7 @@ function render() {
   renderCounts(); renderSide()
   if (ui.view === 'summary') renderSummary(); else renderItem()
 }
-function renderQuiet() { renderCounts(); renderSide() }
+function renderQuiet() { renderCounts(); renderSide(); fillRefs() }
 
 document.addEventListener('click', e => {
   const t = e.target.closest('button')
@@ -562,7 +601,12 @@ document.addEventListener('click', e => {
     else { ui.view = 'item'; ui.cur[ui.plat] = t.dataset.go }
     saveUi(); render(); document.getElementById('main').scrollTop = 0; return
   }
-  if (t.dataset.copy !== undefined) { copyText(t.dataset.copy); return }
+  if (t.dataset.copy !== undefined) {
+    const raw = t.dataset.copy
+    const missing = missingRefs([...raw.matchAll(REF)].map(m => lookup(m[1], ui.plat)))
+    copyText(fill(raw, ui.plat), null, missing.length ? `Copied, but ${missing.map(r => `${r.label} (${r.id})`).join(', ')} isn't recorded yet` : 'Copied')
+    return
+  }
   if (t.dataset.copyPlat) { copyText(buildExport(t.dataset.copyPlat)); return }
   if (t.dataset.nav) { move(+t.dataset.nav); return }
   if (t.dataset.verdict) { setVerdict(t.dataset.verdict); return }
@@ -626,6 +670,7 @@ function onField(t) {
   const id = ui.cur[ui.plat]
   const fields = Object.assign({}, res(ui.plat, id).fields, { [t.dataset.field]: t.value })
   updateResult(ui.plat, id, { fields })
+  fillRefs()
 }
 
 function setVerdict(v) {
