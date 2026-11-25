@@ -30,7 +30,9 @@ let root = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.
 let stateFile, save = false, asJson = false
 const sessions = new Map() // id -> since (ms)
 const wanted = new Map() // agent id -> label
+let unknownSession = false // the state file holds `unknown` where the id wasn't available
 function addSession(id, since, bad = usageError) {
+  if (id === 'unknown') { unknownSession = true; return }
   if (!/^[\w-]+$/.test(id)) return bad(`bad session id ${id}`)
   const ms = since ? Date.parse(since) : 0
   if (Number.isNaN(ms)) return bad(`bad time ${since}`)
@@ -74,7 +76,7 @@ if (stateFile) {
   }
 }
 if (!sessions.size && !wanted.size) {
-  if (!stateFile) usageError('pass --state, --session or --agent')
+  if (!stateFile && !unknownSession) usageError('pass --state, --session or --agent')
   console.log('usage unavailable: no sessions or agents recorded in the state file')
   process.exit(0)
 }
@@ -217,6 +219,7 @@ function markdown() {
   out.push(`| **Total** | | ${total.apiCalls} | ${total.toolCalls} | ${tokens(total)} | | | |`)
   out.push('', '↳ is nested in the agent above it. Wall times overlap, so they have no total.')
   if (unlisted.length) out.push(`Not listed: ${unlisted.length} other agent(s) in these sessions (${unlisted.join(', ')}).`)
+  if (unknownSession) out.push('Not counted: the orchestrator in a session whose id is unknown.')
   return out.join('\n')
 }
 const md = markdown()

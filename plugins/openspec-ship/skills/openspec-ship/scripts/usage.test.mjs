@@ -118,6 +118,21 @@ test('reads a state file across sessions and saves the table into it', t => {
   assert.doesNotMatch(again, /unavailable/)
 })
 
+test('a session recorded as unknown has no row and blocks nothing', t => {
+  const { root, run } = setup(t)
+  const state = path.join(root, 'change.md')
+  fs.writeFileSync(state, ['sessions:', '- unknown since ' + at(0), '- s1', 'agents:', '- 2-apply A aaa s1', '- 6-manual E ccc unknown', ''].join('\n'))
+  const r = run('--state', state, '--save', '--json')
+  assert.deepEqual(r.json.rows.map(x => [x.agent, !!x.usage]), [['aaa', true], ['bbb', true], ['ccc', true], ['main session', true]])
+  assert.equal(r.stderr, '')
+  assert.equal(run('--state', state, '--save').stderr, '') // replaces the saved table
+  const saved = fs.readFileSync(state, 'utf8')
+  assert.equal(saved.match(/^usage:/gm).length, 1)
+  assert.match(saved, /Not counted: the orchestrator/)
+  fs.writeFileSync(state, 'sessions:\n- unknown\n')
+  assert.match(run('--state', state).stdout, /^usage unavailable/)
+})
+
 test('missing transcripts are unavailable, not a failure', t => {
   const { root, run } = setup(t)
   for (const args of [['--session', 'nope'], ['--agent', 'nope=2-apply A'], ['--root', path.join(root, 'nowhere'), '--session', 's1']]) {
