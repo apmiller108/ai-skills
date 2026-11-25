@@ -28,7 +28,7 @@ VP=${CLAUDE_SKILL_DIR}
 ## 0. Project config
 
 If the repo has `.claude/openspec-ship.yaml`, read its `manual_test` section (platforms,
-how to build on each, where logs live, `plan_dir`, when a production build is needed)
+how to build on each, where logs live, `plan_dir`, when a production build is needed),
 its `rules` and its `safety`. Use them as the defaults below. Without it, `plan_dir` is
 `docs/verification`, and you ask the user about platforms at the checkpoint.
 

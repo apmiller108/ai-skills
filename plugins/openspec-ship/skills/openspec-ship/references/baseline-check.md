@@ -1,10 +1,10 @@
 # Baseline check
 
 Was a failure there before this change? Reproduce it on the base before anyone fixes it.
-Run everything in the gate form, and judge **each spec** from the log, or run one command per
-spec: the exit code speaks for a spec only when it was the only one that ran. A spec that
-didn't run (no match, a crash before it) has no result. Every command, the install included,
-runs under `safety` with data of its own: the isolation `full` uses, but
+Run everything in the gate form, and judge **each spec** from the log, or run one command
+per spec: the exit code speaks for a spec only when it was the only one that ran. A spec
+that didn't run (no match, a crash before it) has no result. Every command, the install
+included, runs under `safety` with data of its own: the isolation `full` uses, but
 not the folder the branch's run left behind. Never run the base and the branch at the same
 time; they may share a port, profile or cache.
 
@@ -61,8 +61,8 @@ exit code can't tell you about a new one. A failure that isn't recorded, or fail
 new error, gets its own check. If the branch merges the base in, the merge-base moves:
 clear the list and check again.
 
-Agents get the list through the `<if pre-existing: …>` line in their prompts, filled from the
-state file each time one is spawned; send it to an agent you continue.
+Agents get the list through the `<if pre-existing: …>` line in their prompts, filled from
+the state file each time one is spawned; send it to an agent you continue.
 
 Finish by removing the worktree you added (`git worktree remove <path>`) and its
 `leftovers:` line. It refuses over untracked files; once you've seen they all came from

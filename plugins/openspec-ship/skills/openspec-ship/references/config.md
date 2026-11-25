@@ -37,8 +37,7 @@ user to write YAML. Draft it yourself:
 4. Commit it on the change branch together with the proposal, as `Adds openspec-ship
    config`. It ships with the first change and every later run reads it.
 
-**A config without `safety`** (or with it empty) stops the run, on a resume too. Draft
-only that key with the check above, show it, ask, and add the user's answer to the file.
+**A config without `safety`** (SKILL.md section 0): draft only that key with the check above.
 Commit the file alone on the change branch as `Adds safety rules to openspec-ship
 config` (with the proposal if there's no branch yet), and push if the PR is open.
 
@@ -120,10 +119,6 @@ commits:
   style: Third-person present tense subjects under ~60 chars ("Implements …", "Fixes …")
   never: [.env, dist/, coverage/]   # paths a run may produce that must never be committed
 ```
-
-What `safety` covers: how to start the app and run `full` against throwaway data, the
-commands never to run, and whatever the data points at (absolute paths, exports, sync
-targets), since a copy in an isolated profile can still reach the real files.
 
 ## How the skills use it
 

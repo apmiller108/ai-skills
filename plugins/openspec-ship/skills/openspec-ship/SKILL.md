@@ -126,14 +126,18 @@ follow-ups: - extract the path-masking table into a shared module (M)
 review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
+accepted: |           # what the fix agent gets: accepted findings verbatim, and the user's decision; cleared at its commit
+  - refactor 2 [STRUCTURAL] …; user: apply
 denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
 verification: |       # per verification task: result @ commit, deferred, or waived
   - 4.1 full suite: deferred
   - 4.2 import under 2 s: pass (1.4 s) @ 3f2c1a0
   - 4.3 signed build: waived by the user (no certificate here)
+  - 4.4 drag on Windows: manual case B2
 deviations: |         # every DEVIATIONS line, with its step
   - apply (A): polling instead of a file watcher, watcher misses network drives; design.md "Change detection"
 pre-existing: e2e/export.spec "keeps tags": 2/2 on base 6521867, timeout at save   # or "flaky"
+merge-red: e2e/export.spec; user's OK 2026-02-03   # only if they said to merge with it red
 leftovers: apply (A): /tmp/fixture.db from scripts/seed.sh   # outside the agent's folder, or still running
 waiting-on: user runs manual plan in the runner
 usage: |              # written by scripts/usage.mjs --save; keep it last
@@ -149,25 +153,26 @@ lost when the ship resumes in another session:
 - Add an `agents:` line for every agent you spawn, as soon as the call returns its id. An
   agent continued with `SendMessage` keeps its line. Agents it spawns itself (the nested
   review in step 5) are found by the script.
-- Don't add up `subagent_tokens` from task notifications. It's the agent's context size
-  when it stopped, not the tokens it used; it leaves out nested agents, and an agent that
-  stops more than once reports it more than once.
+- Don't add up `subagent_tokens` from task notifications: it's the agent's context size when
+  it stopped, not the tokens it used.
 
-On invocation, check the config as in section 0 first: an in-flight change can have a
-config from before `safety` was required. When you add it there, send the expanded
-standing rules along with your message to any agent you continue. If a manual plan is
-already out, ask the user to hold off and have agent E or E-light revise it.
+On invocation, read the state file if it exists, then check the config as in section 0
+before acting on it: an in-flight change can have a config from before `safety` was
+required. If you add it there, send the expanded standing rules along with your message to
+any agent you continue, and if a manual plan is already out, ask the user to hold off while
+agent E or E-light revises it.
 
-Then read the state file if it exists and resume after its `step`, with its
-`pipeline:` (don't show the menu again unless the user asks to change it; a state file
-without `pipeline:` predates the menu, so treat it as every step on). Paths recorded in a
-state file can go stale after a plugin update: re-resolve `vp-dir` and `impeccable-dir`
-if they no longer exist. If there's no file, check the git and PR state: no branch → 1;
-unchecked tasks in `tasks.md` other than verification tasks → 2; none of those left but no
-PR → assume 3 hasn't run and do it (verification tasks wait for step 4, ticked or not);
-PR open → ask the user which step it reached rather than redoing review. Without a state
-file, show the menu before resuming. Say which step you're resuming at, and why, in one
-line.
+Then resume after the state file's `step`, with its `pipeline:` (don't show the menu again
+unless the user asks to change it; a state file without `pipeline:` predates the menu, so
+treat it as every step on). Paths recorded in a state file can go stale after a plugin
+update: re-resolve `vp-dir` and `impeccable-dir` if they no longer exist. If `accepted:`
+is set, that step's fixes were never committed: spawn its fix agent with it and the
+predecessor warning ("Denied commands"), asking the user first for any decision that's
+missing. If there's no file, check the git and PR state: no branch → 1; unchecked tasks in
+`tasks.md` other than verification tasks → 2; none of those left but no PR → assume 3
+hasn't run and do it (verification tasks wait for step 4, ticked or not); PR open → ask
+the user which step it reached rather than redoing review. Without a state file, show the
+menu before resuming. Say which step you're resuming at, and why, in one line.
 
 ## Choose the pipeline
 
@@ -253,16 +258,17 @@ Ask which they want, record the answer in the state file as `denied:`, and send 
 **same** agent with `SendMessage`:
 
 - **Leave it out**: the agent finishes without that part. A check that didn't run is
-  reported as not run, here and in the PR body.
+  reported as not run, here and on the PR body's **Not run:** line. If it's `<lint>` or
+  `<test>`, that isn't an OK to commit: ask for that separately and record it too.
 - **They run it** and paste the result, which goes to the agent as data.
 - **Allow it**: they change the permission, then the agent tries once more. Your message
   isn't the permission; if it's denied again, it stays denied.
 
 If the agent already finished and the user leaves it out, there's nothing to send. Until
 they answer, don't commit that step's work; set `waiting-on:` to the question and note
-what a fresh agent would need (for a fix agent, the accepted items). On a later session
-the old agent is gone: ask again, then spawn the step's agent with the answer, and tell
-it the working tree may hold its predecessor's unfinished edits.
+what a fresh agent would need. On a later session the old agent is gone: ask again, then
+spawn the step's agent with the answer and the predecessor warning (the working tree may
+hold its predecessor's unfinished edits).
 
 **`LEFTOVERS:`** doesn't stop the run. Anything outside the agent's folder or still running
 goes in the step's progress line and the state file's `leftovers:`, and into the next
@@ -288,32 +294,35 @@ says (section 0):
 - A step that was skipped, or whose findings were all dropped, changed nothing and runs
   no gate.
 
+Write what you accepted to `accepted:` before you spawn any fix agent, and clear it when
+its work is committed.
+
 ## Verification tasks
 
 A **verification task** is a task in `tasks.md` that states a check: a suite, a count, a
 measurement, a build, something to look at, alone or with an edit. Its result is true only
-of the code it ran on, so record each in the state file's `verification:` with its commit.
-A result is **stale** once a later commit touches anything the check exercises; if unsure,
-it's stale. Commits under `openspec/` don't count unless they change the task itself, lint
-and unit tasks are kept fresh by the gates, and for a `<full>` task
-`<full_after_changes_in>` decides, if set.
+of the code it ran on, so record each in the state file's `verification:` with its commit;
+a run on a tree you then commit unchanged counts for that commit. A result is **stale**
+once a later commit touches anything the check exercises; if unsure, it's stale. Commits
+under `openspec/` don't count unless they change the task itself, lint and unit tasks are
+kept fresh by the gates, and for a `<full>` task `<full_after_changes_in>` decides, if
+set.
 
-- **Step 4 runs** every verification task that's deferred, failed, stale or has no recorded
-  result (Implement deselected, no state file). The slow ones (full suite, performance,
-  packaged build) are always deferred to here. You run them, on committed code, in the gate
-  form; a check that takes more than a command or two goes to the fix agent as `C-verify`
-  ("run the check in task <id>, report the result, change nothing"). One `<full>` run
-  serves every task that asks for it.
+- **Steps 4 and 7 run** every verification task that's deferred, failed, stale or has no
+  recorded result (Implement deselected, no state file). The slow ones (full suite,
+  performance, packaged build) are always deferred to step 4. You run them in the gate form;
+  a check that takes more than a command or two goes to the fix agent as `C-verify`. One
+  `<full>` run serves every task that asks for it, step 4's own included.
 - **You tick**, when the result meets everything the task says, and untick one that no
   longer holds. A commit with only these edits is `Records verification of <change>`.
 - **Fails**: handle as a failing gate, then re-run it and whatever the fix made stale. A
-  suite whose only failures are
-  pre-existing passes once CI has passed those specs on the same code.
-- **Needs a person or another machine**: pass it to agent E or E-light as a case to
-  include; it's ticked when that case passes. With no manual plan, ask the user for it.
+  suite whose only failures are pre-existing passes once CI has passed those specs on the
+  same code.
+- **Needs a person or another machine**: give it to agent E or E-light as a must-include
+  case, record the case id it reports, and tick the task when that case passes. With no
+  manual plan, ask the user for it.
 - **Can't run** (denied, `safety`, missing hardware): ask the user to run it or waive it.
-- **After step 4**, review, CI and manual-test fixes can make results stale; step 7 re-runs
-  those once. A number in the PR body always comes from a result that isn't stale.
+- A number in the PR body always comes from a result that isn't stale.
 
 A task is **resolved** when it's ticked (a verification task: on a result that isn't
 stale) or the user waived it. Only they can; it stays unticked, with `(waived by the user:
@@ -347,14 +356,13 @@ change in the tree. Fast-forward with `git merge --ff-only origin/<base>`.
 - **Implement deselected**: the code should already be on the branch `<change>`. Switch
   to it if it exists instead of creating it. Uncommitted changes on that branch are the
   implementation: run the lint and unit gate, then commit them as `Implements <change>`.
-  If `tasks.md` still has unchecked tasks other than verification tasks, list them and ask
-  whether to go on. Nobody has reported results, so step 4 runs every verification task.
+  If `tasks.md` still has unchecked tasks other than verification tasks, list them, tick the
+  ones the user says are done, and ask whether to go on if any are left. Nobody has reported
+  results, so step 4 runs every verification task.
 
 ## 2. Apply (agent A, if `Implement` is selected)
 
-Spawn the **apply agent** (general-purpose) with the template in the reference. It runs
-the `openspec-apply-change` skill, implements every task, and runs lint plus the unit
-tests that cover what it touched. It leaves slow verification tasks unticked.
+Spawn the **apply agent** (general-purpose) with the template in the reference.
 
 When it reports:
 
@@ -369,8 +377,11 @@ When it reports:
   Then compare `grep -nE '^ *[-*] \[[ xX]\]' openspec/changes/<change>/tasks.md` with the
   report. Every verification task is in CHECKS or UNTICKED. A ticked one has a result that
   meets everything the task says and doesn't contradict your gate; if not, untick it and
-  send it back. `deferred` is for the slow ones only; `failed` goes back to the agent, and
-  to the user if it can't be made to pass. Any other unticked task is unfinished work.
+  send it back. `deferred` is for the slow ones only. `not run` with a reason that holds (a
+  person or another machine, denied, `safety`) is settled as in "Verification tasks".
+  `failed` goes back to the agent; if it can't be made to pass, the user changes what the
+  task asks, waives it, leaves it open (it blocks step 7) or stops the ship. Any other
+  unticked task is unfinished work.
 
 Commit everything as one commit: `Implements <change>` plus a one-line body from the
 agent's summary. Commit message style is in "Commits" below. Save the report's
@@ -394,7 +405,8 @@ have the user's pick before it writes code and a subagent can't ask:
 3. **Build**: send the pick to the **same** agent with `SendMessage`. It builds the
    direction on the change's surfaces only, adds the direction to the change's
    `design.md` and a task to `tasks.md` (so the archived spec matches what shipped), and
-   verifies it in the running app. It ticks the task only if that worked.
+   verifies it in the running app. It ticks the task only if that worked; record its
+   VERIFIED line in `verification:`.
 
 Check `git status --porcelain` and the diff stat: anything outside the change's UI files
 and its `openspec/changes/<change>/` artifacts gets shown to the user before you keep it.
@@ -403,50 +415,35 @@ Run the gate and commit as `Adds <direction> to <change>`. On `None`, record
 
 ## 2b. UX critique (agents G1, G2 and C, if `UX critique` is selected)
 
-Critique sits here, before refactor, on purpose: its fixes are the biggest UI edits in
-the flow (states, hierarchy, copy, layout), so refactor, the audit and the code review
-should all see the critiqued code rather than review code that changes afterwards.
+Critique runs before refactor because its fixes are the biggest UI edits in the flow: the
+later reviews should see the critiqued code.
 
 If `git diff --name-only <base>...HEAD -- <ui.paths>` prints nothing, record `critique:
 skipped (no UI changes)` and move on.
 
 `impeccable critique` requires two **isolated** assessments run as separate subagents.
-Subagents can't spawn their own, so you spawn both, in parallel, in one message:
+Subagents can't spawn their own, so you spawn both, in parallel, in one message: **G1,
+design review** (looks at the running app) and **G2, detector**. Neither edits files. You do
+the synthesis critique's own flow would do: line their reports up (a G2 hit that matches a
+G1 issue confirms it) and triage with the critique rubric in the reference. Don't run
+critique's snapshot persistence or its closing question; the conversation with the user is
+yours.
 
-- **G1, design review**: reads the changed components and looks at the running app,
-  started with `<ui.run>` under `safety` and inspected as `<ui.view>` describes. It stops
-  the app before reporting.
-- **G2, detector**: runs impeccable's detector over the changed UI paths.
-
-Neither edits files. You do the synthesis critique's own flow would do: line their
-reports up (a G2 hit that matches a G1 issue confirms it) and triage with the critique
-rubric in the reference. Don't run critique's snapshot persistence or its closing
-question; the conversation with the user is yours.
-
-**Pick the fixes yourself**, without asking the user, using the critique rubric in the
-reference. Critique produces many findings and most are taste. Keep only the ones a user
-of this change would actually notice, in a situation they'll actually reach. Drop
-nitpicks and fixes for unlikely scenarios, whatever the agent's severity. When unsure,
-drop it. Send the accepted ones to the fix agent, copied verbatim, then run the gate and
-commit as `Fixes <what> from UX critique`. In the step's progress line, name each
-accepted finding with a few words on why. Tally for the PR body: `critique: 9 findings,
-2 fixed, 1 follow-up, 6 dropped`.
+**Pick the fixes yourself**, without asking the user; most critique findings are taste, so
+when unsure, drop it. Send the accepted ones to the fix agent, copied verbatim, then run the
+gate and commit as `Fixes <what> from UX critique`. In the step's progress line, name each
+accepted finding with a few words on why. Tally for the PR body: `critique: 9 findings, 2
+fixed, 1 follow-up, 6 dropped`.
 
 ## 3. Refactor (agents B and C, if `Refactor` is selected)
 
-This is the "knowing what we know now, what would we do differently?" pass. Building
-the change taught things the proposal didn't know, and this step looks back at the
-code with that hindsight while it's still cheap to reshape.
+This is the "knowing what we know now, what would we do differently?" pass, while the code
+is still cheap to reshape.
 
 Spawn the **refactor agent** (general-purpose) with the template in the reference.
 Pass it the state file's `learnings:` verbatim (if Implement was deselected there are
 none, and the agent infers them from the commits), plus the overdrive and critique
-tallies so it doesn't re-raise them. It **reports only, without editing**: numbered
-findings tagged STRUCTURAL or CODE (and BUG where behaviour is wrong), each with
-file:line, what to change, its cost today, the risk of changing it and how to check that,
-whether it reverses a `design.md` decision, what it was learned from, whether it's in the
-diff, and its size. One that's only partly in the diff comes split (4a, 4b). It ends with
-an `Approach note:`.
+tallies so it doesn't re-raise them. It **reports only, without editing**.
 
 Check `git status --porcelain` when it returns. If it changed files anyway, show the
 user the diff stat and ask whether to keep the edits or discard them with
@@ -456,15 +453,14 @@ user the diff stat and ask whether to keep the edits or discard them with
 follow-up or drop. Copy the approach note into the follow-ups as it is, unless it's
 "none".
 
-**Structural findings and design reversals go to the user.** If any accepted finding is
-STRUCTURAL or reverses a `design.md` decision (CODE ones included), set `step:
-3-refactor-paused`, record all the accepted findings in the state file, and show these in
-one block: each finding's what, cost, risk (with its check) and size, and for a reversal
-the decision and what the build showed, with your proposed disposition (apply now if S or
-M and either in the diff or broken by the change, otherwise follow-up). Ask once which to
-apply, or "all as proposed". On a resume at `3-refactor-paused`, show the same block
-again. The other code-level findings don't wait for anything but this answer: they go in
-the same batch.
+**Structural findings and design reversals go to the user.** If any finding you'd apply or
+make a follow-up is STRUCTURAL or reverses a `design.md` decision (CODE ones included), set
+`step: 3-refactor-paused`, record all the accepted findings in `accepted:`, and show these in
+one block: each finding's what, cost, risk (with its check) and size, and for a reversal the
+decision and what the build showed, with your proposed disposition (apply now if S or M and
+either in the diff or broken by the change, otherwise follow-up). Ask once which to apply,
+or "all as proposed", and add the answer to `accepted:`. The other code-level findings wait
+only for this answer: they go in the same batch.
 
 Then spawn the **fix agent** (general-purpose) once, with the accepted code-level
 findings and the ones the user approved, copied verbatim with their `Risk:` lines and,
@@ -508,10 +504,7 @@ agent returns, as in step 3. Also make sure it didn't write `PRODUCT.md`, the de
 or impeccable config. Restore those with `git restore` without asking. They're out of
 scope for a ship.
 
-**Triage** with the design rubric in the reference. Fix violations of the design doc,
-WCAG AA failures and copy-guide breaks that the diff introduced. Drop the scores, taste,
-anything in `<ui.skip>` and P3 polish. Issues in untouched code become follow-ups. Fix
-accepted findings with the fix agent, run the lint and unit gate, and commit as
+**Triage** with the design rubric in the reference. Fix accepted findings with the fix agent, run the lint and unit gate, and commit as
 `Fixes <what> from design audit`. Keep a one-line tally (`design: 5 findings, 2 fixed,
 1 follow-up, 2 dropped`) for the PR body.
 
@@ -519,12 +512,9 @@ accepted findings with the fix agent, run the lint and unit gate, and commit as
 
 Run the whole local gate before anyone else looks at the branch: `<lint>`, `<test>` and,
 if configured, `<full>`, each in the gate form. Run `<full>` whatever the change is. It's
-usually slow, so run it with `run_in_background` and wait to be notified. If it fails, do
-the baseline check ("Spec gates"); failures the change caused go to a fix agent. Re-run,
-and commit as `Fixes <what>`.
-
-With the gate green and the fixes committed, run the verification tasks ("Verification
-tasks"), then push and open the PR against the base:
+usually slow, so run it with `run_in_background` and wait to be notified. A failure is
+handled as in "Spec gates"; commit a fix as `Fixes <what>`. With the gate green, run the
+verification tasks ("Verification tasks"), then push and open the PR against the base:
 
 ```bash
 git push -u origin <change>
@@ -541,6 +531,7 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 **Checks:** <lint, unit, full> pass locally<, except the ones below>.
 **Already failing before this change:** <spec, counts on base and commit, "flaky" if so; what CI says about it. Leave the line out if none>
 **Verification tasks:** <n>/<m> ticked at <sha>; <measured numbers>; <open or waived ones and why>. <leave out if tasks.md has none>
+**Not run:** <checks that didn't run, and why; leave the line out if none>
 **Overdrive:** <direction built, "none chosen", or "skipped (…)">.
 **UX critique:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
 **Refactor:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
@@ -572,9 +563,7 @@ Spawn the **review agent** (general-purpose). It invokes the built-in `code-revi
 at effort `high` against the PR number and sends back the findings as text.
 
 **Triage** with the critical-bug rubric in the reference, plus the project's `critical`
-list. Fix critical bugs and drop everything else: style, naming, PLAUSIBLE findings
-without a concrete failure, and refactor and design findings already settled in
-steps 2a–3b. If a finding is severe but you doubt it, have the fix agent confirm it before
+list. Fix critical bugs and drop everything else. If a finding is severe but you doubt it, have the fix agent confirm it before
 fixing. A finding it can't confirm gets dropped, with a note.
 
 Fix accepted findings with the fix agent, which also adds a regression test for each bug.
@@ -646,9 +635,9 @@ this step instead of the short plan.
 ### Light plan
 
 Spawn the **light test-plan agent** (E-light in the reference). It sends back a
-`## Manual verification` section: 3–6 unchecked `- [ ]` items, each one action and its
-expected result, covering only what automation can't. The `DENIED:` and `LEFTOVERS:` lines
-come before that heading: act on them, and leave them out of the PR. Edit the PR body (step
+`## Manual verification` section: 3–6 unchecked `- [ ]` items (plus any must-include ones),
+each one action and its expected result, covering only what automation can't. The lines
+before that heading are for you: act on them, and leave them out of the PR. Edit the PR body (step
 4): add the section, from its heading down, above the attribution line, and set the
 **Manual test:** line to `light checklist in this PR`. Give the user the PR link, and
 **stop**.
@@ -673,9 +662,10 @@ Before archiving, in this order; a code fix in any of them starts the list over:
   only check: confirm it ran them and put the result in the PR body. If it didn't, nothing
   covers them and the user decides. Being on that list doesn't excuse a red: a listed spec
   that fails in CI blocks the merge too, unless the user, told which, says to merge with it
-  red (say so in the PR body).
-- **Verification**: re-run what's stale, update the ticks and the PR body, and list any task
-  in `tasks.md` that isn't resolved. If there is one, stop and ask; don't archive.
+  red (record it as `merge-red:` and in the PR body, and don't ask again).
+- **Verification**: run what's due ("Verification tasks"), update the ticks and the PR body,
+  and list any task in `tasks.md` that isn't resolved. If there is one, stop and ask; don't
+  archive.
 - **Deviations**: check each line of `deviations:` against the section it names (read only
   that section). If the artifact doesn't describe what shipped, or the section is gone,
   the fix agent (`C-artifacts`) updates it, in a commit of its own.
@@ -686,7 +676,7 @@ Before archiving, in this order; a code fix in any of them starts the list over:
    already settled.
 2. Commit as `Archives <change>` and push.
 3. Wait for CI again, as above; don't merge red. If it takes a code fix, run the checks
-   above again before merging, against the archived change's files.
+   above again before merging, with `<change-dir>` the archived folder.
 4. Merge with the configured method: `gh pr merge <n> --<merge>`.
 5. Switch back with `git switch <base> && git fetch origin <base> && git merge --ff-only
    origin/<base>`, and report the merge commit in one line.

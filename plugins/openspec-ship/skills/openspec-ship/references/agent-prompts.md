@@ -8,7 +8,8 @@ verbatim, even when that is `none`. A line marked `<if …>` is included only
 when the condition holds. `<impeccable-dir>` and `<vp-dir>` are the absolute paths
 recorded in the state file. `<out>` is the orchestrator's own scratch folder (SKILL.md
 section 0), and `<agent-dir>` is the agent's (see "Shared blocks"). `<git-dir>` is the
-output of `git rev-parse --absolute-git-dir`.
+output of `git rev-parse --absolute-git-dir`. `<change-dir>` is `openspec/changes/<change>`,
+or after step 7's archive `openspec/changes/archive/<dated name>`.
 
 Every prompt ends with a report format and a word cap. The cap is what keeps the
 orchestrator's context small, so keep it in.
@@ -40,9 +41,10 @@ Subagents don't see this file. Before spawning one, replace the lines `<standing
 `<removed-names>` (A, B and C), `<artifact-rules>` (the agents that change code: A, C, H
 and I) and `<report-lines>` in its prompt with the full text of these blocks, their own
 placeholders filled in. `<gate-form>` inside the first is the code block at the top of
-SKILL.md, with the log at `<agent-dir>/<gate>.log`; its `<command>` and `<gate>` stay as they
-are, for the agent to fill in. A prompt that still contains any other placeholder named in
-this section isn't ready to send. Agent H has two reports, so it gets the report lines twice.
+SKILL.md, with the log at `<agent-dir>/<gate>.log`; its `<command>` and `<gate>` stay as
+they are, for the agent to fill in. A prompt that still contains any other placeholder
+named in this section isn't ready to send. Agent H has two reports, so it gets the report
+lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
@@ -114,27 +116,30 @@ in local config too, listing paths only (it can hold secrets):
   git grep -lF --untracked --no-exclude-standard -e '<name>' -- ':(top,glob)**/.env*'
 
 A hit counts when the change broke it. History that should keep the old name (past
-migrations, changelogs) doesn't. A gitignored file is the user's: report it, don't edit it.
+migrations, changelogs) doesn't. A gitignored file is the user's: report it, don't edit
+it.
 ```
 
 `<artifact-rules>`:
 
 ```
-Change artifacts: openspec/changes/<change>/ has to describe the code you leave behind. If
-you depart from a decision recorded in design.md, or an item you were given changes one,
-update design.md (proposal.md if there is none), and the specs and tasks.md where
-affected, and say there what changed and why. That's always in scope, whatever files or
-items this prompt limits you to. What the change must do isn't yours to loosen: a spec
-requirement or a task's stated check changes only if the user or an accepted item says
-so; otherwise report it. Report each departure, one line each, outside the word cap:
-DEVIATIONS: <what the artifact said; what's built instead, and why; file and section updated>
+Change artifacts: <change-dir>/ has to describe the code you leave behind. If you depart
+from a decision recorded in design.md, or an item you were given changes one, update
+design.md (proposal.md if there is none), and the specs (<if archived: openspec/specs/
+too>) and tasks.md where affected, and say there what changed and why. That's always in
+scope, whatever files or items this prompt limits you to. What the change must do isn't
+yours to loosen: a spec requirement or a task's stated check changes only if the user or an
+accepted item says so; otherwise report it. Report each departure, one line each, outside
+the word cap:
+DEVIATIONS: <what the artifact said; what's built instead, and why; file and section>
 ```
 
 `<report-lines>`:
 
 ```
 Always include this, outside the word cap, one line per item:
-DENIED: <the command, word for word; what it was for; "skipped <what>" or "BLOCKED"; or "none">
+DENIED: <the command, word for word; what it was for; "skipped <what>" or "BLOCKED"; or
+  "none">
 LEFTOVERS: <what's still in your scratch folder, one phrase; processes still running;
   each path written outside it that this prompt didn't name (say how, e.g. a script with
   a fixed /tmp path); or "none">
@@ -188,8 +193,9 @@ Report (≤400 words):
 STATUS: DONE | BLOCKED
 TASKS: <n>/<m> ticked
 UNTICKED: <task id: "deferred", "failed: <result>" or "not run: <why>">, or "none"
-CHECKS: <id of each ticked task that states a check: command, result as printed>, or "none".
-  All run after your last edit. One line per task here and above, outside the word cap
+CHECKS: <id of each ticked task that states a check: command, result as printed>, or
+  "none". All run after your last edit. One line per task here and above, outside the word
+  cap
 FILES: <changed paths, grouped by area>
 SUMMARY: <one line, what the change does>
 TESTS: <specs added or changed; result of the runs>
@@ -327,6 +333,9 @@ Rules:
   "Removed names" search below on your own edits (`git diff HEAD`).
 - Don't widen the scope beyond that and the change artifacts. If a fix needs any other
   change, report it instead of making it.
+<if C-verify: - These items are checks to run, not changes to make. Edit nothing, and skip
+  the searches and the finishing lint and test. Report only, under CHECKS, each task id with
+  the command and the result as printed, plus DENIED and LEFTOVERS.>
 - Don't tick or untick tasks in tasks.md; the orchestrator does.
 - Don't commit. Finish with `<lint>` and `<test>`; both must pass.
 
@@ -384,6 +393,8 @@ given below; don't edit source or commit.
 
 Inputs: openspec/changes/<change>/ (proposal, design, specs, tasks), the diff
 (`git diff <base>...HEAD`), and the tests that already cover it.
+<if any: Must include: <task id and its check, one per line>. One `req` case each, on top
+of the 8 below and never cut; a task asking for a platform is `req` there.>
 
 Project rules:
 <rules>
@@ -395,11 +406,10 @@ automated tests don't. Use a production/packaged build when the change touches
 <ui.copy_guide>.> Find real UI labels by grepping <ui.paths>; don't invent them.
 Check commands, SQL and script paths against the repo.
 
-The tester's machine may hold real data, so the plan follows Safety too: Setup puts
-each platform on throwaway data before anything starts the app, and no step uses a
-command Safety forbids. If a risk only shows on real data, the case says so in `why`
-and a Setup item backs that data up first. Where Safety doesn't say how to isolate a
-platform, say so in the Setup step and list it under UNVERIFIED.
+The plan follows Safety too: Setup puts each platform on throwaway data before anything
+starts the app. If a risk only shows on real data, the case says so in `why` and a Setup
+item backs that data up first. Where Safety doesn't say how to isolate a platform, say so
+in the Setup step and list it under UNVERIFIED.
 
 Format: <vp-dir>/references/plan-schema.md. Skim the items of
 <vp-dir>/examples/settings-export.plan.json for the level of detail a runnable
@@ -429,18 +439,21 @@ tests one thing.
 - `exit`: an `allRequired` criterion and a `failuresResolved` criterion.
 <If resuming with new cases: read the existing plan JSON, append the new items with
 new ids, and never renumber, rename or reuse an existing id or field key.>
+<If revising for Safety: the same, and the tester may have started. Put isolation in new
+Setup items, first in every `order`. In existing items only reword a step's text or `cmd`;
+ticks are stored by position, so don't add, remove or reorder steps.>
 
 Save it to <git-dir>/openspec-ship/<change>.plan.json, then build and smoke-test:
 
-  node <vp-dir>/scripts/build.mjs <plan.json> --max-cases 8 \
-    --html <out>/<change>-test.html
+  node <vp-dir>/scripts/build.mjs <plan.json> \
+    --max-cases <8 plus the number of must-include tasks> --html <out>/<change>-test.html
   NODE_PATH=<node_modules with jsdom> node <vp-dir>/scripts/smoke.cjs <out>/<change>-test.html
 
 The smoke test needs jsdom. Use the repo's node_modules if it has jsdom;
 otherwise `npm i --prefix <agent-dir>/vp jsdom` and use
 <agent-dir>/vp/node_modules. Fix the JSON until both pass with no warnings. For the
 case-cap warning, that means removing cases and listing them as CUT.
-<If resuming with new cases: leave out --max-cases.>
+<If resuming or revising: leave out --max-cases.>
 Don't publish.
 
 <standing-rules>
@@ -450,6 +463,7 @@ HTML: <path to the built runner>
 BUILD: dev | packaged, and why
 CASES: <id — title — req|opt, one per line>
 OUT OF SCOPE: <what automation already covers, one line each with the test file>
+<if any: MUST INCLUDE: <case id → task id, one per line>>
 CUT: <cases left out for the cap — the risk each covered, one line each, or "none">
 UNVERIFIED: <commands or UI labels you couldn't confirm, or "none">
 <report-lines>
@@ -470,6 +484,11 @@ Include only what the automated tests don't already prove: how it looks, how it
 feels, real data, <if manual_test.packaged_when: a production build where the
 change touches <manual_test.packaged_when>>. <if ui.paths: Find real UI labels by
 grepping <ui.paths>; don't invent them.>
+<if any: Must include: <task id and its check, one per line>. One item each, on top of the
+3–6 below.>
+<If revising for Safety: the checklist as it stands is: <the section from the live PR body>.
+Send the whole section back: keep each item's tick and order, reword items where Safety
+needs it, and add new ones at the end.>
 
 Project rules:
 <rules>
@@ -480,6 +499,7 @@ follows Safety below, and an item that needs real data says to back it up first.
 <standing-rules>
 
 Report (≤200 words). First these lines, which the orchestrator keeps out of the PR:
+<if any: MUST INCLUDE: <item number → task id, one per line>>
 <report-lines>
 Then exactly this markdown, and nothing after it:
 ## Manual verification
@@ -700,7 +720,8 @@ where polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
 Report (≤250 words):
 EDITS: <file>:<line>: <what changed and why, one line each>
 DEVIATIONS: <as in Change artifacts>, or "none"
-NOT CHANGED: <what you'd change but didn't, and why: redesign, out of scope, needs a decision>
+NOT CHANGED: <what you'd change but didn't, and why: redesign, out of scope, needs a
+  decision>
 GATE: lint <pass/fail>, unit <pass/fail> (paste only failures)
 <report-lines>
 ```
@@ -768,10 +789,8 @@ what keeps it from becoming churn.
   anything whose Risk outweighs its Cost today (a slower start for every user to save the
   next developer an edit), and a design reversal without evidence from the build.
 
-**STRUCTURAL** findings, and findings of either kind that **reverse a design decision**,
-go to the user before anything is applied, if you accept them (apply now or follow-up;
-SKILL.md step 3). The user agreed to `design.md`, so a CODE-sized reversal is theirs to
-decide too. A finding against a test is never structural.
+What goes to the user first is in SKILL.md step 3. A finding against a test is never
+structural.
 
 Triage each part of a split finding (4a, 4b) on its own, and count it as a finding in the
 tally: typically 4a is accepted and 4b becomes a follow-up. If a finding has no `Risk:` or
@@ -814,6 +833,6 @@ these outcomes:
 - anything in the project config's `critical` list
 
 Drop: style, naming, readability, missing tests for code that's otherwise correct,
-PLAUSIBLE findings whose failure scenario is vague, and duplicates of refactor findings.
+PLAUSIBLE findings whose failure scenario is vague, and findings settled in steps 2a–3b.
 A PLAUSIBLE finding with a severe, concrete scenario goes to the fix agent marked
 "confirm first".
