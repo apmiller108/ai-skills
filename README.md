@@ -29,9 +29,12 @@ plugins/openspec-ship/
 └── skills/
     ├── openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
-    │   └── references/
-    │       ├── agent-prompts.md         prompt template per subagent + triage rubrics
-    │       └── config.md                every key of .claude/openspec-ship.yaml
+    │   ├── references/
+    │   │   ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
+    │   │   ├── baseline-check.md        was a failing spec already failing on the base?
+    │   │   └── config.md                every key of .claude/openspec-ship.yaml
+    │   ├── scripts/usage.mjs            token usage per agent, from the session transcripts
+    │   └── scripts/usage.test.mjs       its tests (node --test)
     └── verification-plan/
         ├── SKILL.md                     analyze → checkpoint → plan JSON → build → publish → read back
         ├── references/plan-schema.md    the plan JSON schema
@@ -50,6 +53,7 @@ flowchart LR
     ship["SKILL.md<br/>orchestrator"]
     prompts["references/agent-prompts.md<br/>agent templates + rubrics"]
     config["references/config.md<br/>project config keys"]
+    usage["scripts/usage.mjs<br/>usage per step"]
   end
   subgraph vp_s["skills/verification-plan"]
     vp["SKILL.md"]
@@ -66,6 +70,7 @@ flowchart LR
   end
   ship --> prompts
   ship --> config
+  ship -- "final report" --> usage
   ship -- "Full manual test" --> build
   vp --> build --> runner
   smoke -. checks .-> runner
@@ -82,9 +87,16 @@ accept/reject decision and every conversation with you. Subagents do the reading
 editing, and send back short, capped reports. A skill can't `/compact`, so this split is
 what keeps the main context small enough to take a change all the way to merge.
 
+Every agent works under the same standing rules: follow the project's `safety` block, stop
+at a denied command and report it (the orchestrator asks you), and write temp files only
+to its own scratch folder.
+
 The run opens with one menu where you toggle the optional steps and pick the manual
 test plan. Branch, PR and merge always run; specs (lint + unit) run after every step
-that changes code, and red is never committed.
+that changes code, and red is never committed. Every gate keeps its own exit code, in the
+background too; its output goes to a log and only the tail is read. A full-suite failure is
+first reproduced on the base, in a throwaway worktree: one that was already there is named
+in the PR and left to CI, which still has to be green.
 
 ```mermaid
 flowchart TD
@@ -118,15 +130,15 @@ steps drop out of the chain.</sub>
 
 | Step | Agent(s) | Edits? | What happens |
 |---|---|---|---|
-| Implement | **A** apply | yes | Runs `openspec-apply-change`, works through `tasks.md`, reports LEARNINGS for the refactor step. |
+| Implement | **A** apply | yes | Runs `openspec-apply-change`, works through `tasks.md` (ticking a task only when its own check passed on the final code), reports LEARNINGS for the refactor step. |
 | Overdrive | **H** overdrive | yes, after you pick | Proposes 2–3 ambitious UI directions; you pick one (or none) and the same agent builds it. |
 | UX critique | **G1** design review ∥ **G2** detector | no | Two isolated assessments run in parallel; the orchestrator cross-checks and keeps only fixes a real user would notice. |
-| Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings. Structural ones are shown to you before they're applied. |
+| Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings, each with the risk of changing it and how to check that. Structural ones, and any that reverse a `design.md` decision, are shown to you before they're applied. |
 | Polish | **I** polish | yes | Refinement within the existing design: spacing, states, token drift, copy fit. |
 | Design audit | **F** design audit | no | `impeccable audit` against the design doc, WCAG AA and the copy guide. |
 | Code review | **D** review | no | Built-in `/code-review` at effort `high` on the PR; only critical bugs are fixed, each with a regression test. |
-| Manual test | **E** / **E-light** | plan only | Full: a verification plan published as a runner. Light: 3–6 checkboxes in the PR body. |
-| *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage. |
+| Manual test | **E** / **E-light** | plan only | Full: a verification plan of at most 8 cases, published as a runner. Light: 3–6 checkboxes in the PR body. |
+| *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage: a regression test for each behaviour fix, and each finding's risk check, measured. |
 
 The review steps all follow the same loop: a report-only agent, triage in the main
 session against a rubric from `agent-prompts.md`, one fix agent, then the gate:
@@ -137,11 +149,11 @@ sequenceDiagram
   participant R as Review agent (B / D / F / G)
   participant C as Fix agent C
   participant U as You
-  O->>R: prompt + project rules + prior tallies
+  O->>R: prompt + standing and project rules + prior tallies
   R-->>O: numbered findings (no edits)
   O->>O: git status — revert stray edits
   O->>O: triage: accept / follow-up / drop
-  opt structural refactor findings
+  opt structural refactor findings, design reversals
     O->>U: proposed dispositions
     U-->>O: which to apply
   end
@@ -151,9 +163,25 @@ sequenceDiagram
   O->>O: commit, record tally for the PR body
 ```
 
+Verification tasks in `tasks.md` are tied to the code they ran on. Slow ones (full suite,
+performance, packaged build) run in step 4, any that a later fix could affect run again, and
+nothing is archived with one that's neither passed nor waived by you.
+
+An agent that departs from a recorded decision updates `design.md` in the same pass and
+reports it; step 7 checks each reported deviation before the change is archived.
+
 Progress is kept in a state file at `.git/openspec-ship/<change>.md` (local, never
 committed), so a run that stops for days — waiting on a question or a manual test pass —
 resumes at the right step with the same pipeline.
+
+Each menu option carries a rough cost, and the final report has a token usage table: a row
+per agent, by step, including nested agents and the orchestrator. The state file records
+which agent ran which step, and `usage.mjs` adds up their transcripts in `~/.claude/projects`.
+To measure any session:
+
+```
+node plugins/openspec-ship/skills/openspec-ship/scripts/usage.mjs --session <session-id> [--json]
+```
 
 ### Requirements
 
@@ -172,7 +200,9 @@ installs a hook, and many repos already vendor it as a project skill.
 
 Each repo gets a committed `.claude/openspec-ship.yaml` with its lint and test commands,
 where UI code lives, how to run and screenshot the app, which platforms to test on, and
-project rules every agent should follow. You don't write it by hand: on the first run the
+project rules every agent should follow. It also needs a `safety` block: how to run the
+app and the suites without touching your real data (`none` is fine, but you have to say
+so; a run stops without it). You don't write it by hand: on the first run the
 skill drafts it from `package.json`, CI config and `CLAUDE.md`, shows it to you, and
 commits it with the change. See
 [`references/config.md`](plugins/openspec-ship/skills/openspec-ship/references/config.md)

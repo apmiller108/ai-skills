@@ -2,10 +2,11 @@
 // Build a verification plan's Markdown doc and interactive runner from one
 // plan JSON file, so the two never drift.
 //
-//   node build.mjs <plan.json> [--md <out.md>] [--html <out.html>] [--results <dir>] [--summary]
+//   node build.mjs <plan.json> [--md <out.md>] [--html <out.html>] [--results <dir>] [--max-cases <n>] [--summary]
 //
 // --results reads docs saved by `ArtifactData list ... out_dir=<dir>` (the
 // results/ and findings/ collections) and fills the Markdown status cells.
+// --max-cases warns when the plan has more than n cases. Setup (section S) doesn't count.
 // --summary prints each case's recorded verdict, values and notes.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,7 +19,12 @@ function isFlagValue(a) { const i = args.indexOf(a); return i > 0 && args[i - 1]
 const flag = n => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined }
 
 if (!planPath) {
-  console.error('usage: node build.mjs <plan.json> [--md out.md] [--html out.html] [--results dir] [--summary]')
+  console.error('usage: node build.mjs <plan.json> [--md out.md] [--html out.html] [--results dir] [--max-cases n] [--summary]')
+  process.exit(2)
+}
+const maxCases = args.includes('--max-cases') ? Number(flag('max-cases')) : Infinity
+if (maxCases !== Infinity && !(Number.isInteger(maxCases) && maxCases > 0)) {
+  console.error('error: --max-cases needs a positive whole number')
   process.exit(2)
 }
 const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'))
@@ -79,6 +85,10 @@ for (const c of plan.exit || []) {
 for (const p of plan.platforms || []) for (const m of p.meta || []) {
   const it = (plan.items || []).find(i => i.id === m.item)
   if (!it || !(it.fields || []).some(f => f.k === m.field)) errors.push(`platforms.${p.id}.meta: ${m.item}.${m.field} doesn't exist`)
+}
+const caseCount = (plan.items || []).filter(i => i.sec !== 'S').length
+if (caseCount > maxCases) {
+  warn.push(`${caseCount} cases, over the cap of ${maxCases}: remove the ${caseCount - maxCases} covering the least serious risks and report them as cut. Don't merge cases or move them to Setup to get under it`)
 }
 warn.forEach(w => console.warn('warn:', w))
 if (errors.length) {
