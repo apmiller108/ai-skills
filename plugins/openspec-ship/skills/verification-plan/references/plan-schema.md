@@ -11,6 +11,7 @@ detail steps should have.
 - Platforms
 - Items (cases)
 - Steps, expected results, fields
+- Using a recorded value in a later step
 - Order and phases
 - Exit criteria
 - Findings and run log
@@ -96,9 +97,24 @@ One platform is fine; the switcher hides itself.
 
 - Text supports `` `code` ``, `**bold**`, `*italic*`. Nothing else.
 - `only`: a platform id or an array of them. It works on steps, expect entries and fields.
-- `cmd`: a copyable block. Put one command per line. Use placeholders like `<run-id>` for values the tester supplies.
+- `cmd`: a copyable block. Put one command per line. For a value the tester records in a field, use `{{ITEM.field}}` (below). Use a placeholder like `<run-id>` only for a one-off value that no field records.
 - Step indices are stored with results. Append new steps at the end of a case once testing has started; inserting in the middle shifts the saved ticks.
 - `fields[].kind`: `text` (default), `area`, `select`. `mono` for paths, SHAs and log lines.
+
+## Using a recorded value in a later step
+
+```json
+{ "id": "S1", …, "fields": [{ "k": "track", "label": "Test track ID", "mono": true }] }
+{ "id": "A1", …, "steps": [{ "t": "Check the row for `{{S1.track}}`.", "cmd": "sqlite3 app.db \"SELECT * FROM tracks WHERE id = '{{S1.track}}'\"" }] }
+```
+
+`{{ITEM.field}}` shows what the tester recorded in that field, on the same platform, and the Copy button copies it filled in. Until it's recorded, the step shows `<Test track ID from S1>` and links to S1.
+
+- Works in step `t` and `cmd`, in `expect` and in `notes`. Nowhere else.
+- The field can be in an earlier case or in the same one. The build rejects a reference to a case that runs later, an unknown item or field, or an `area` field.
+- When each platform records it in its own item, list them: `{{SL1.track|SM1.track}}` uses the one that applies.
+- The value goes in as typed, with no escaping: quote it in the command, and say in the field's `ph` what form it takes (an absolute path: `~` doesn't expand inside quotes).
+- Adding references to an existing plan is safe; only the item id and field key are stored.
 
 ## Order and phases
 

@@ -287,7 +287,9 @@ flowchart TD
 ```
 
 The runner gives each platform its own tab and run order. The tester ticks steps, copies
-commands, records Pass / Fail / Blocked / Skip with notes, and logs findings. Results
+commands, records Pass / Fail / Blocked / Skip with notes, and logs findings. A value
+recorded in one case (a test record's ID, say) is filled into the later steps and commands
+that use it. Results
 sync through the artifact's store (so a laptop and a test VM share one run), survive
 republishing, and Claude reads them back to gate the merge.
 
