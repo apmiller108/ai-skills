@@ -289,7 +289,11 @@ platform, say so in the Setup step and list it under UNVERIFIED.
 
 Format: <vp-dir>/references/plan-schema.md. Skim the items of
 <vp-dir>/examples/settings-export.plan.json for the level of detail a runnable
-step needs. Keep the plan short (typically 3–8 cases):
+step needs. Keep the plan short: 3–8 cases, 8 at most. A case counts once, whatever
+its platforms; setup items (section `S`) don't count, but they only prepare and
+never test the change. If more than 8 look worthwhile, keep the 8 that cover the
+most serious risks and report the rest as CUT. Don't merge cases to fit: one case
+tests one thing.
 - `id`: `<change>`. `title`: "Manual test: <plain-English title>". `pageTitle`:
   2–4 words. `subtitle`: "PR #<n> · branch `<change>`".
   `target`: {kind: "openspec", ref: "<change>"}.
@@ -314,12 +318,15 @@ new ids, and never renumber, rename or reuse an existing id or field key.>
 
 Save it to <git-dir>/openspec-ship/<change>.plan.json, then build and smoke-test:
 
-  node <vp-dir>/scripts/build.mjs <plan.json> --html <out>/<change>-test.html
+  node <vp-dir>/scripts/build.mjs <plan.json> --max-cases 8 \
+    --html <out>/<change>-test.html
   NODE_PATH=<node_modules with jsdom> node <vp-dir>/scripts/smoke.cjs <out>/<change>-test.html
 
 The smoke test needs jsdom. Use the repo's node_modules if it has jsdom;
 otherwise `npm i --prefix <agent-dir>/vp jsdom` and use
-<agent-dir>/vp/node_modules. Fix the JSON until both pass with no warnings.
+<agent-dir>/vp/node_modules. Fix the JSON until both pass with no warnings. For the
+case-cap warning, that means removing cases and listing them as CUT.
+<If resuming with new cases: leave out --max-cases.>
 Don't publish.
 
 <standing-rules>
@@ -329,6 +336,7 @@ HTML: <path to the built runner>
 BUILD: dev | packaged, and why
 CASES: <id — title — req|opt, one per line>
 OUT OF SCOPE: <what automation already covers, one line each with the test file>
+CUT: <cases left out for the cap — the risk each covered, one line each, or "none">
 UNVERIFIED: <commands or UI labels you couldn't confirm, or "none">
 <report-lines>
 ```

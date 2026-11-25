@@ -189,6 +189,7 @@ If the user pastes the runner's Markdown export instead, use it the same way.
 
 - `scripts/build.mjs`: validate the plan JSON and render the Markdown and runner HTML;
   `--results` folds recorded results into the Markdown; `--summary` prints them compactly.
+  `--max-cases <n>` warns when there are more than n cases outside Setup (section `S`).
 - `scripts/smoke.cjs`: headless check of a built runner (needs `jsdom`).
 - `assets/runner.html`: the runner template. The plan is injected at `/*__PLAN__*/null`.
   Change it only to improve the runner for every plan, and rerun the smoke test
