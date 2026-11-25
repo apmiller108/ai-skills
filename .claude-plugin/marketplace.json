@@ -8,7 +8,7 @@
     {
       "name": "openspec-ship",
       "source": "./plugins/openspec-ship",
-      "description": "Ship an OpenSpec change from proposal to merged PR, with optional design passes and an interactive manual test runner.",
+      "description": "Ship an OpenSpec change from proposal to merged PR, with optional hindsight refactor, design passes and an interactive manual test runner.",
       "category": "development"
     }
   ]

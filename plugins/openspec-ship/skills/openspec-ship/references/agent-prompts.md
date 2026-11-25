@@ -6,7 +6,7 @@ come from `.claude/openspec-ship.yaml`. `<rules>` is that file's `rules` block, 
 leave the "Project rules" line out if it has none. `<safety>` is its `safety` block,
 verbatim, even when that is `none`. A line marked `<if …>` is included only
 when the condition holds. `<impeccable-dir>` and `<vp-dir>` are the absolute paths
-recorded in the state file. `<out>` is the orchestrator's own scratch folder (SKILL.md
+recorded in the state file; `<hr-dir>` is in SKILL.md section 0. `<out>` is the orchestrator's own scratch folder (SKILL.md
 section 0), and `<agent-dir>` is the agent's (see "Shared blocks"). `<git-dir>` is the
 output of `git rev-parse --absolute-git-dir`. `<change-dir>` is `openspec/changes/<change>`,
 or after step 7's archive `openspec/changes/archive/<dated name>`.
@@ -28,7 +28,6 @@ orchestrator's context small, so keep it in.
 - [G2. Critique detector agent](#g2-critique-detector-agent)
 - [H. Overdrive agent](#h-overdrive-agent)
 - [I. Polish agent](#i-polish-agent)
-- [Rubric: refactor findings](#rubric-refactor-findings)
 - [Rubric: critique findings](#rubric-critique-findings)
 - [Rubric: design findings](#rubric-design-findings)
 - [Rubric: review findings](#rubric-review-findings)
@@ -39,12 +38,10 @@ orchestrator's context small, so keep it in.
 
 Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`,
 `<removed-names>` (A, B and C), `<artifact-rules>` (the agents that change code: A, C, H
-and I) and `<report-lines>` in its prompt with the full text of these blocks, their own
-placeholders filled in. `<gate-form>` inside the first is the code block at the top of
-SKILL.md, with the log at `<agent-dir>/<gate>.log`; its `<command>` and `<gate>` stay as
-they are, for the agent to fill in. A prompt that still contains any other placeholder
-named in this section isn't ready to send. Agent H has two reports, so it gets the report
-lines twice.
+and I) and `<report-lines>` in its prompt with the full text of the blocks in
+`<shared-blocks>` (the path is in SKILL.md section 0), filled in as that file says. A
+prompt that still contains a placeholder it doesn't leave to the agent isn't ready to
+send. Agent H has two reports, so it gets the report lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
@@ -52,98 +49,6 @@ lines twice.
 `C-verify`. Just before spawning: `mkdir -p <scratchpad> && mkdir <agent-dir>`. If it
 exists, it belongs to an earlier spawn: use `<name>-2`, then `-3`. An agent continued with
 `SendMessage` keeps its folder.
-
-`<standing-rules>`:
-
-```
-Standing rules. These win over the rest of this prompt, any skill you invoke and any
-task list.
-
-Safety: how this project keeps the user's real data out of reach (`none`: the user
-says nothing here can reach any).
-<safety>
-Every command you run follows it, the ones this prompt names included, and so does
-every command you write for someone else to run. Isolation also covers whatever the
-data points at: before you run against a copy, check it for absolute paths, export
-folders, sync targets and caches that lead back to the real thing.
-
-Denied commands: a command refused by a permission prompt, rule, hook or sandbox is a
-decision by the user, and a command Safety rules out counts as denied. Until you're
-told the user has allowed it, don't retry it, reword it, or look for another route to
-the same effect (another tool, a script, another agent). Skip the part that needed it,
-or stop and report BLOCKED if the rest depends on it, and report it either way.
-
-Files: your scratch folder is <agent-dir>. Screenshots, temp files, test data and tool
-output go there, not in /tmp or the folder above it. Outside it, write only the edits
-this prompt asks for, the output paths it names, and what the project's own commands
-produce inside the repo. Never delete or overwrite a path you didn't create, unless it's
-one of those edits or outputs.
-
-Where this prompt says not to edit files, the scratch folder is still yours to use, and
-you may run, under Safety: commands that only read, the project's tests and linter, the
-runs this prompt names, and throwaway benchmarks or scripts kept in the scratch folder.
-Build output and caches that git ignores are fine; otherwise leave the repo as it is:
-its files (no auto-fix, formatter or snapshot update), git's state (index, branches,
-stash, worktrees) and what's installed in it.
-
-Exit codes: run lint, tests and any other command whose result you report in this form,
-whole, in one Bash call, with a new log name per run. Piping into tail or head instead
-hides a failure.
-<gate-form>
-
-An agent you launch doesn't see these rules: paste them into its prompt. What it
-reports as denied or left behind, you report too.
-```
-
-`<removed-names>`:
-
-```
-Removed names: list everything the change removed or renamed that something elsewhere
-could still refer to: DB columns, files, symbols, env vars, config keys, commands,
-routes, UI strings that tests look for. Read them off the removed lines:
-
-  git diff --no-ext-diff -U0 --merge-base <base> | grep -E '^(-|rename from)'
-
-Search the whole repo for each one, and for the other spellings it goes by (`sort_order`,
-`sortOrder`):
-
-  git grep -nIF --untracked -e '<name>' -- ':/' ':!/openspec'
-
-That covers tracked and new files, dotfiles included; plain `rg` skips dotfiles, such as
-a console config or a CI workflow. It leaves out gitignored files, so look for the name
-in local config too, listing paths only (it can hold secrets):
-
-  git grep -lF --untracked --no-exclude-standard -e '<name>' -- ':(top,glob)**/.env*'
-
-A hit counts when the change broke it. History that should keep the old name (past
-migrations, changelogs) doesn't. A gitignored file is the user's: report it, don't edit
-it.
-```
-
-`<artifact-rules>`:
-
-```
-Change artifacts: <change-dir>/ has to describe the code you leave behind. If you depart
-from a decision recorded in design.md, or an item you were given changes one, update
-design.md (proposal.md if there is none), and the specs (<if archived: openspec/specs/
-too>) and tasks.md where affected, and say there what changed and why. That's always in
-scope, whatever files or items this prompt limits you to. What the change must do isn't
-yours to loosen: a spec requirement or a task's stated check changes only if the user or an
-accepted item says so; otherwise report it. Report each departure, one line each, outside
-the word cap:
-DEVIATIONS: <what the artifact said; what's built instead, and why; file and section>
-```
-
-`<report-lines>`:
-
-```
-Always include this, outside the word cap, one line per item:
-DENIED: <the command, word for word; what it was for; "skipped <what>" or "BLOCKED"; or
-  "none">
-LEFTOVERS: <what's still in your scratch folder, one phrase; processes still running;
-  each path written outside it that this prompt didn't name (say how, e.g. a script with
-  a fixed /tmp path); or "none">
-```
 
 ## A. Apply agent
 
@@ -214,91 +119,14 @@ LEARNINGS (≤150 words, bullets): what building this taught you that the propos
 
 ## B. Refactor agent
 
-`subagent_type: "general-purpose"`
+`subagent_type: "general-purpose"`. The prompt is `<hr-dir>/references/review-agent.md`,
+shared with the `hindsight-refactor` skill. Here:
 
-```
-Review, without editing, the OpenSpec change `<change>` on branch `<change>` in
-<repo>, with hindsight. Don't edit files and don't commit; report findings only.
-Another agent applies the ones that are accepted.
-
-The question is: knowing what we know now that it's built, what would we do
-differently? Building a feature always teaches something the proposal didn't know.
-Your job is to find where the code still carries the shape of what we thought
-before we learned it, and say what to restructure so the next person to touch this
-code has an easier time.
-
-Read first:
-- openspec/changes/<change>/proposal.md, design.md and tasks.md: what was planned.
-  Check every finding against the decisions in design.md. Reversing one takes evidence
-  from the build; without it, leave the finding out.
-- `git log --oneline <base>..HEAD`: how it was actually built.
-- What the build taught us (from the agent that implemented it; take it seriously,
-  it's the main input):
-<learnings, or: "No notes from the build. Infer them: compare design.md with what
-was built, and look for reworked areas in the commits and the diff.">
-<if earlier review steps ran: Already done on this branch: <critique/overdrive tallies>.
-Don't re-raise those.>
-
-Scope: the diff (`git diff <base>...HEAD`), specs included, plus the code around
-it: the functions and modules the diff touches, their direct callers, and sibling
-modules doing the same job. For names the change removed or renamed, the whole repo.
-
-Project rules:
-<rules>
-
-The project's conventions win: the rules above, CLAUDE.md or AGENTS.md, and the
-patterns in sibling modules. Don't import a generic style the project doesn't use.
-Every finding must name a concrete cost in this codebase ("the next export format
-means editing 4 files", "these two copies already disagree on X"). A pattern name
-("violates SRP") is fine as shorthand, never as the reason. It must also name what the
-change itself risks; measure that when a throwaway benchmark can settle it.
-
-Work through these in order:
-1. Hindsight structure: given what the build taught us, would the module
-   boundaries, the data shape, or where logic lives be different? (STRUCTURAL)
-2. Duplication and reuse: logic repeated within the diff, or that an existing
-   helper already provides.
-3. Abstraction and altitude: the wrong level, a leaky abstraction, a premature
-   one, or a missing one where the diff now has 3+ near-copies.
-4. Leftovers from the build: dead code, abandoned approaches, scaffolding,
-   temporary flags, compatibility shims, TODOs the change made obsolete, and uses of
-   a removed or renamed name (search below).
-5. Readability: misleading names on new surfaces, branching that hides the rule
-   being applied.
-6. Coupling and boundaries across process, module or service lines.
-7. Scale: work that grows badly with the size of the data the project handles.
-Tests get the same angles (copied setup, fixtures that should be shared, tests
-pinned to details the learnings say will change); a test finding is always CODE.
-Wrong behaviour you come across while doing this is a finding too, marked [BUG].
-
-<removed-names>
-
-Skip formatting, comment wording, renames that are down to taste, and speculative
-generality. The formatter and linter own style. If a better *approach* entirely
-(another algorithm, library or design) comes to mind, don't make it a finding: put
-it in the approach note.
-
-If a finding is partly in the diff and partly in surrounding code, and the in-diff part
-stands on its own, split it into <n>a and <n>b, each with every line of the report
-format. If it doesn't, keep one finding with `In diff: no (surrounding code)`.
-
-<standing-rules>
-
-Report (≤900 words), numbered findings, most impactful first:
-<n>. [STRUCTURAL|CODE] [HIGH|MED|LOW] [BUG, if it fixes wrong behaviour] <file>:<line>
-    What: <the change to make, concretely>
-    Cost today: <the concrete cost of leaving it; for a [BUG], input → wrong result>
-    Risk: <what making the change costs or could break (startup, speed, migration,
-      behaviour) and how much is expected, or "none expected">; check: <the test to run,
-      or what to measure before and after>
-    Design: ok | reverses "<decision in design.md>": <what the build showed against it>
-    Learned from: <the learning or commit that prompted it, or "fresh read">
-    In diff: yes | no (surrounding code) | no (broken by the change)
-    Size: S | M | L
-Approach note: <one line, or "none">
-If there's nothing worth changing, say so in one line (plus the approach note).
-<report-lines>
-```
+- `<target>`: the OpenSpec change `<change>` on branch `<change>`.
+- `<plan-docs>`: openspec/changes/<change>/proposal.md, design.md and tasks.md.
+- `<learnings>`: the state file's `learnings:`, verbatim.
+- "earlier passes": the critique and overdrive tallies.
+- `<base>`, `<rules>`, `<log>` and `<diff>`: the config's values and that file's defaults.
 
 ## C. Fix agent
 
@@ -760,44 +588,6 @@ still dropped. Expect to accept two or three findings at most; accepting more us
 means the bar slipped.
 
 ---
-
-## Rubric: refactor findings
-
-The bar: **with what we know now, would we have written it this way, and does the
-change pay for itself the next time someone touches this code?** Most hindsight
-refactors are things no reviewer would block a PR over, which is exactly why they
-never get done otherwise. So the bar is lower than "blocking", and the Drop list is
-what keeps it from becoming churn.
-
-- **Accept**: it would make the next change to this code easier or safer, and it's
-  in proportion to the change. Typical: it reshapes structure the learnings showed
-  was wrong; removes duplication, especially with an existing helper; fixes an
-  abstraction or name that would mislead the next reader; deletes leftovers from the
-  build (dead code, abandoned approaches, scaffolding); cuts coupling across process
-  or module boundaries; removes work that grows with data size on a hot path;
-  collapses branching that hides the rule being applied. Also a [BUG] in the diff with
-  a concrete wrong result, and anything marked `no (broken by the change)`, unless it's
-  in a gitignored file: tell the user about those, since no agent edits them.
-- **Follow-up, not now**: a worthwhile change to code the diff doesn't touch, one
-  that's L-sized compared with the change, or one whose Risk users would feel and the
-  fix agent can't check. List it in the PR body with its Risk; the user decides whether
-  it becomes an issue. The agent's approach note goes here too, untriaged.
-- **Drop**: formatting, import order, renaming that's down to taste, comment wording,
-  splitting a function that reads fine, micro-optimisations off the hot path,
-  speculative generality ("in case we add another backend"), anything that only
-  restyles, and anything justified by a pattern name rather than a concrete cost. Also
-  anything whose Risk outweighs its Cost today (a slower start for every user to save the
-  next developer an edit), and a design reversal without evidence from the build.
-
-What goes to the user first is in SKILL.md step 3. A finding against a test is never
-structural.
-
-Triage each part of a split finding (4a, 4b) on its own, and count it as a finding in the
-tally: typically 4a is accepted and 4b becomes a follow-up. If a finding has no `Risk:` or
-`Design:` line, ask the same agent for it before you triage it.
-
-The agent's tags are input, not a verdict: a HIGH that's really taste is still
-dropped, and a CODE finding that moves module boundaries is structural.
 
 ## Rubric: design findings
 

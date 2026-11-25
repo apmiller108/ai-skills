@@ -1,8 +1,9 @@
 # Project config: `.claude/openspec-ship.yaml`
 
-Everything project-specific that the ship flow and `verification-plan` need lives in one
-committed file at the repo root: `.claude/openspec-ship.yaml`. The skills hold the
-process; this file holds the project's commands, paths and rules.
+Everything project-specific that the ship flow, `hindsight-refactor` and
+`verification-plan` need lives in one committed file at the repo root:
+`.claude/openspec-ship.yaml`. The skills hold the process; this file holds the project's
+commands, paths and rules.
 
 ## Creating it
 
@@ -124,12 +125,12 @@ commits:
 
 | Key | Used by |
 |---|---|
-| `commands.lint`, `commands.test` | every spec gate; every agent that edits |
+| `commands.lint`, `commands.test` | every spec gate; every agent that edits; `hindsight-refactor`'s edits |
 | `commands.test_paths`, `commands.full_specs` | `<paths>` and `<specs>` become the spec files: agent A (`test_paths`), and the baseline check on a failing gate. Without them the whole suite runs |
-| `safety` | pasted into every agent prompt (in `<standing-rules>`); the orchestrator's own gates and app runs; the steps agents E and E-light and `verification-plan` write for the user |
+| `safety` | pasted into every agent prompt (in `<standing-rules>`); the orchestrator's own gates and app runs; the steps agents E and E-light and `verification-plan` write for the user; `hindsight-refactor`'s review and gate |
 | `commands.full`, `full_after_changes_in` | the pre-PR gate, and re-runs after later fixes |
 | `ui.*` | the menu (UI review question), agents F, G1, G2, H, I |
 | `manual_test.*` | agent E, and the `verification-plan` skill |
-| `rules` | pasted into every agent prompt as `<rules>` |
-| `critical` | the review rubric |
+| `rules` | pasted into every agent prompt as `<rules>`, `hindsight-refactor`'s included |
+| `critical` | the code review rubric |
 | `commits.*` | every commit; `never` is checked before staging |

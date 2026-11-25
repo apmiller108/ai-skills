@@ -36,9 +36,9 @@ context small by design:
 - When an agent stops on a question, get the answer from the user and continue the
   **same** agent with `SendMessage`, so it keeps its context and you don't repeat it.
 
-Read `references/agent-prompts.md` before spawning the first agent. It has the prompt for
-each agent, the shared blocks you expand into every prompt, and the rules for what to
-accept and what to reject.
+Read `references/agent-prompts.md` and `<shared-blocks>` before spawning the first agent.
+They have the prompt for each agent, the shared blocks you expand into every prompt, and
+the rules for what to accept and what to reject.
 
 ## 0. Config and prerequisites
 
@@ -88,10 +88,16 @@ didn't create.
 - **Artifact and ArtifactData tools** (optional). Without them, offer only Light and None
   for the manual test.
 
-**Sibling skill.** The verification-plan scripts are at
+**Sibling skills.** The verification-plan scripts are at
 `${CLAUDE_SKILL_DIR}/../verification-plan`. Subagents can't expand that variable, so
 resolve it to an absolute path now, record it as `vp-dir:`, and pass it into prompts as
 `<vp-dir>`.
+
+Step 3's prompt and rubric belong to the `hindsight-refactor` skill, and the blocks every
+prompt shares are at the plugin root. Only you read these, so they aren't recorded:
+
+- `<hr-dir>`: `${CLAUDE_SKILL_DIR}/../hindsight-refactor`
+- `<shared-blocks>`: `${CLAUDE_SKILL_DIR}/../../shared/agent-blocks.md`
 
 ## Inputs
 
@@ -441,27 +447,25 @@ fixed, 1 follow-up, 6 dropped`.
 This is the "knowing what we know now, what would we do differently?" pass, while the code
 is still cheap to reshape.
 
-Spawn the **refactor agent** (general-purpose) with the template in the reference.
-Pass it the state file's `learnings:` verbatim (if Implement was deselected there are
-none, and the agent infers them from the commits), plus the overdrive and critique
-tallies so it doesn't re-raise them. It **reports only, without editing**.
+The `hindsight-refactor` skill runs this pass on its own; here you reuse its prompt and
+rubric instead of invoking it, so it stays inside the ship's state and commits.
+
+Spawn the **refactor agent** (general-purpose) with the template in
+`<hr-dir>/references/review-agent.md`, filled in as "B. Refactor agent" in the reference
+says. If Implement was deselected there are no learnings, and the agent infers them from
+the commits. It **reports only, without editing**.
 
 Check `git status --porcelain` when it returns. If it changed files anyway, show the
 user the diff stat and ask whether to keep the edits or discard them with
 `git restore`.
 
-**Triage the findings yourself** with the refactor rubric in the reference: accept,
-follow-up or drop. Copy the approach note into the follow-ups as it is, unless it's
-"none".
+**Triage the findings yourself** with `<hr-dir>/references/triage.md`: accept, follow-up
+or drop.
 
-**Structural findings and design reversals go to the user.** If any finding you'd apply or
-make a follow-up is STRUCTURAL or reverses a `design.md` decision (CODE ones included), set
-`step: 3-refactor-paused`, record all the accepted findings in `accepted:`, and show these in
-one block: each finding's what, cost, risk (with its check) and size, and for a reversal the
-decision and what the build showed, with your proposed disposition (apply now if S or M and
-either in the diff or broken by the change, otherwise follow-up). Ask once which to apply,
-or "all as proposed", and add the answer to `accepted:`. The other code-level findings wait
-only for this answer: they go in the same batch.
+**Structural findings and design reversals go to the user**, as "What the user decides" in
+that file says. If there are any, set `step: 3-refactor-paused` and record all the accepted
+findings in `accepted:` before you ask, then add the answer to it. The other code-level
+findings wait only for this answer: they go in the same batch.
 
 Then spawn the **fix agent** (general-purpose) once, with the accepted code-level
 findings and the ones the user approved, copied verbatim with their `Risk:` lines and,

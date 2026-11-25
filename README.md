@@ -4,7 +4,7 @@ A Claude Code plugin marketplace.
 
 | Plugin | Skills | What it does |
 |---|---|---|
-| [`openspec-ship`](plugins/openspec-ship) | `openspec-ship`, `verification-plan` | Takes an [OpenSpec](https://github.com/Fission-AI/OpenSpec) change from proposal to merged PR, and writes risk-based manual test plans as an interactive runner. |
+| [`openspec-ship`](plugins/openspec-ship) | `openspec-ship`, `hindsight-refactor`, `verification-plan` | Takes an [OpenSpec](https://github.com/Fission-AI/OpenSpec) change from proposal to merged PR, reviews finished work with hindsight, and writes risk-based manual test plans as an interactive runner. |
 
 ## Install
 
@@ -26,15 +26,20 @@ claude plugin install openspec-ship@ai-skills
 .claude-plugin/marketplace.json          marketplace manifest (lists the plugins)
 plugins/openspec-ship/
 ├── .claude-plugin/plugin.json           plugin manifest
+├── shared/agent-blocks.md               standing rules and report lines for agent prompts
 └── skills/
     ├── openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
     │   ├── references/
-    │   │   ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
+    │   │   ├── agent-prompts.md         prompt template per subagent, triage rubrics
     │   │   ├── baseline-check.md        was a failing spec already failing on the base?
     │   │   └── config.md                every key of .claude/openspec-ship.yaml
     │   ├── scripts/usage.mjs            token usage per agent, from the session transcripts
     │   └── scripts/usage.test.mjs       its tests (node --test)
+    ├── hindsight-refactor/
+    │   ├── SKILL.md                     target → learnings → review agent → triage → checkpoint → apply
+    │   ├── references/review-agent.md   the review agent's prompt
+    │   └── references/triage.md         accept / follow-up / drop, and what you decide
     └── verification-plan/
         ├── SKILL.md                     analyze → checkpoint → plan JSON → build → publish → read back
         ├── references/plan-schema.md    the plan JSON schema
@@ -44,8 +49,9 @@ plugins/openspec-ship/
         └── assets/runner.html           the runner template the plan is injected into
 ```
 
-The two skills are independent: `verification-plan` works on its own for any branch or
-feature, and `openspec-ship` reuses its scripts and runner for the Full manual test.
+`hindsight-refactor` and `verification-plan` work on their own for any branch or feature.
+`openspec-ship` reuses the first's prompt and rubric for its Refactor step, and the second's
+scripts and runner for the Full manual test.
 
 ```mermaid
 flowchart LR
@@ -55,6 +61,12 @@ flowchart LR
     config["references/config.md<br/>project config keys"]
     usage["scripts/usage.mjs<br/>usage per step"]
   end
+  subgraph hr_s["skills/hindsight-refactor"]
+    hr["SKILL.md"]
+    hrprompt["references/review-agent.md"]
+    triage["references/triage.md"]
+  end
+  blocks["shared/agent-blocks.md"]
   subgraph vp_s["skills/verification-plan"]
     vp["SKILL.md"]
     build["scripts/build.mjs"]
@@ -72,6 +84,9 @@ flowchart LR
   ship --> config
   ship -- "final report" --> usage
   ship -- "Full manual test" --> build
+  ship -- "Refactor step" --> hrprompt & triage
+  hr --> hrprompt & triage
+  ship & hr --> blocks
   vp --> build --> runner
   smoke -. checks .-> runner
   ship --> os & imp & cr & gh
@@ -141,7 +156,8 @@ steps drop out of the chain.</sub>
 | *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage: a regression test for each behaviour fix, and each finding's risk check, measured. |
 
 The review steps all follow the same loop: a report-only agent, triage in the main
-session against a rubric from `agent-prompts.md`, one fix agent, then the gate:
+session against a rubric (the refactor one is `hindsight-refactor`'s), one fix agent, then
+the gate:
 
 ```mermaid
 sequenceDiagram
@@ -215,6 +231,26 @@ for every key.
 ```
 
 or just ask: "ship the add-settings-export change".
+
+## hindsight-refactor
+
+Reviews work that's already built and asks: knowing what we know now, what would we do
+differently? It runs on its own for an OpenSpec change, a branch, a PR or a described
+feature, and is what `openspec-ship` uses for its Refactor step.
+
+It starts from what the build taught: your notes, the session that built it, or the
+learnings an `openspec-ship` run saved. A fresh agent that only reports reviews the diff and
+the code around it, and every finding names a concrete cost, the risk of changing it and
+how to check that. The findings are triaged, you pick which to apply, and nothing is
+committed unless you ask.
+
+### Use
+
+```
+/openspec-ship:hindsight-refactor add-settings-export
+```
+
+or ask: "knowing what we know now, what would you change on this branch?"
 
 ## verification-plan
 
