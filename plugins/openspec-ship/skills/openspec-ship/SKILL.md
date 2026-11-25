@@ -94,6 +94,10 @@ state file at `$(git rev-parse --git-dir)/openspec-ship/<change>.md`. It lives i
 step: 4-pr            # last step completed: 1-branch, 2-apply, 2a-overdrive, 2b-critique, 3-refactor, 3a-polish, 3b-design … 7-merged
 pipeline: implement, overdrive, critique, refactor, polish, audit, review   # the steps the user chose
 manual-plan: full     # full | light | none
+sessions:             # every session this ship ran in, from when it started there
+- 1f0c…-session-id since 2026-01-31T09:00:00Z
+agents:               # one line per agent: <step> <letter> <agent id> <session id>
+- 2-apply A a1b2c3d4e5f60718 1f0c…-session-id
 impeccable-dir: /abs/path/to/impeccable   # or "not installed"
 vp-dir: /abs/path/to/verification-plan
 pr: 162
@@ -111,7 +115,22 @@ manual: 4/6 required pass, 1 fail (A3)
 denied: refactor (B): `npm run bench`; user: leave it out   # one per denied command
 leftovers: apply (A): /tmp/fixture.db from scripts/seed.sh   # outside the agent's folder, or still running
 waiting-on: user runs manual plan in the runner
+usage: |              # written by scripts/usage.mjs --save; keep it last
+  | Step | Agent | API calls | …
 ```
+
+**Agents and sessions.** These let `usage.mjs` find each step's transcripts, so nothing is
+lost when the ship resumes in another session:
+
+- Add a `sessions:` line when you create the file, and when you resume in a session that
+  isn't listed: `echo "$CLAUDE_CODE_SESSION_ID since $(date -u +%FT%TZ)"`. If the id is
+  empty, write `unknown`.
+- Add an `agents:` line for every agent you spawn, as soon as the call returns its id. An
+  agent continued with `SendMessage` keeps its line. Agents it spawns itself (the nested
+  review in step 5) are found by the script.
+- Don't add up `subagent_tokens` from task notifications. It's the agent's context size
+  when it stopped, not the tokens it used; it leaves out nested agents, and an agent that
+  stops more than once reports it more than once.
 
 On invocation, check the config as in section 0 first: an in-flight change can have a
 config from before `safety` was required. When you add it there, send the expanded
@@ -139,6 +158,13 @@ design, tasks, delta specs) for `<ui.paths>`, component or view names, or UI cop
 resumed change with commits, use `git diff --name-only <base>...HEAD -- <ui.paths>`. With
 no `ui` config, or no impeccable, the change is treated as having no UI steps.
 
+Every option carries a rough cost: put the tier at the end of its description (`Cost:
+medium`), and end each question with "Costs are rough and depend on the size of the
+change." The tiers are relative tokens, fix agent included: Implement is `high`, `medium` is
+very roughly a quarter to a half of it, `low` a tenth or less. They come from one change on
+one model. That run didn't include Overdrive, UX critique, Polish or Light, so their tiers
+are unmeasured guesses from what the agents do; keep "unmeasured" in those options.
+
 Ask all three questions in the same call. Pipeline and UI review are `multiSelect:
 true`; Manual test is single select. Leave the UI question out when the change has no
 UI.
@@ -146,31 +172,38 @@ UI.
 - **Pipeline** (header `Pipeline`): "Which steps should run for `<change>`? Branch, PR
   and merge always run; specs run after every step that changes code."
   - `Implement`: an agent works through `tasks.md`. Deselect when the code is already
-    written on the branch.
+    written on the branch. Cost: high.
   - `Refactor`: a hindsight pass. Knowing what the build taught us, what would we
     restructure? Duplication, abstractions, leftovers, structure; structural changes
-    are shown to you before they're applied.
+    are shown to you before they're applied. Cost: medium.
   - `Code review`: the built-in `/code-review` skill at effort `high` on the open PR;
-    critical bugs get fixed.
+    critical bugs get fixed. Cost: medium.
 - **UI review** (header `UI review`): "This change touches the UI. Which design steps
   should run?"
   - `Overdrive`: impeccable overdrive, right after implementing. It proposes 2–3
     ambitious directions for the new UI, you pick one (or none), and it builds it.
+    Cost: medium to high (unmeasured; it builds and runs the app), low if you pick none.
   - `UX critique`: impeccable critique (hierarchy, states, copy, heuristics) before
     refactor, so later steps review the critiqued code. Only high-impact fixes for
-    likely situations get applied, picked automatically.
+    likely situations get applied, picked automatically. Cost: medium (unmeasured;
+    two agents, one running the app, plus fixes).
   - `Polish`: impeccable polish after refactor: a final refinement pass on the changed
-    UI, no redesign.
+    UI, no redesign. Cost: medium (unmeasured; one agent that edits and runs the
+    app).
   - `Design audit`: impeccable audit (design doc tokens, WCAG AA, copy guide), last, as
-    the check on everything above.
+    the check on everything above. Cost: low, more if it finds things to fix (the pilot's
+    had none).
 - **Manual test** (header `Manual test`): "How should `<change>` be tested by hand before
   merge?"
   - `Full`: an interactive test runner (claude.ai artifact) with a tab per platform in
     `manual_test.platforms`; results are read back and gate the merge. Recommend it for
-    migrations, background workers, native or cross-platform paths.
+    migrations, background workers, native or cross-platform paths. Cost: medium, plus
+    publishing it.
   - `Light`: 3–6 quick checks as checkboxes in the PR body; the merge waits until
-    they're all ticked. Recommend it for small, UI-only changes.
+    they're all ticked. Recommend it for small, UI-only changes. Cost: low
+    (unmeasured; one short report).
   - `None`: no manual plan; the merge waits on review, CI and the user's go-ahead.
+    Cost: none.
   - Put the recommended option first, with `(Recommended)` after its label. Leave `Full`
     out without `manual_test` config or the Artifact tools.
 
@@ -485,11 +518,12 @@ the state file, so it survives across sessions), builds the runner HTML to
   `test-plan:`.
 - Run one `ArtifactData` `list` on `results` to confirm the store is reachable.
 
-Give the user the link and the agent's outline (case ids and titles, build to test), and
-**stop**. The runner has a tab per configured platform, and the branch must be pushed
-before a second machine can check it out. Every machine needs a browser signed in to
-claude.ai; without it, results stay in that browser's local storage and you can't read
-them back. Don't post the plan on the PR. Don't archive or merge until the results pass.
+Give the user the link and the agent's outline (case ids and titles, build to test, any
+CUT cases), and **stop**. The runner has a tab per configured platform, and the branch
+must be pushed before a second machine can check it out. Every machine needs a browser
+signed in to claude.ai; without it, results stay in that browser's local storage and you
+can't read them back. Don't post the plan on the PR. Don't archive or merge until the
+results pass.
 
 ### Reading results back
 
@@ -570,7 +604,17 @@ Every commit follows the repo's convention:
 
 ## Final report
 
-At the end (or whenever you stop to wait), report in this shape:
+At the end (or whenever you stop to wait), run the usage script once. It reads the
+transcripts, so you don't have to:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/usage.mjs --save \
+  --state "$(git rev-parse --git-dir)/openspec-ship/<change>.md"
+```
+
+Copy its table into the report as printed: one row per agent by step, nested agents (↳)
+under their parent, then the orchestrator. If it fails or finds no transcripts, write
+`Usage: unavailable` and carry on; usage never holds up a ship. Report in this shape:
 
 ```
 <change> — <step reached>
@@ -583,4 +627,5 @@ Test plan: <runner url (full), "PR checklist" (light), or "none">
 Denied: <command and what was decided, one per line; leave out if none>
 Leftovers: <paths and processes outside the agents' folders; leave out if none>
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
+Usage: <the usage table, or "unavailable">
 ```

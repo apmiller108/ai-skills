@@ -29,9 +29,11 @@ plugins/openspec-ship/
 └── skills/
     ├── openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
-    │   └── references/
-    │       ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
-    │       └── config.md                every key of .claude/openspec-ship.yaml
+    │   ├── references/
+    │   │   ├── agent-prompts.md         shared rules, prompt template per subagent, triage rubrics
+    │   │   └── config.md                every key of .claude/openspec-ship.yaml
+    │   ├── scripts/usage.mjs            token usage per agent, from the session transcripts
+    │   └── scripts/usage.test.mjs       its tests (node --test)
     └── verification-plan/
         ├── SKILL.md                     analyze → checkpoint → plan JSON → build → publish → read back
         ├── references/plan-schema.md    the plan JSON schema
@@ -50,6 +52,7 @@ flowchart LR
     ship["SKILL.md<br/>orchestrator"]
     prompts["references/agent-prompts.md<br/>agent templates + rubrics"]
     config["references/config.md<br/>project config keys"]
+    usage["scripts/usage.mjs<br/>usage per step"]
   end
   subgraph vp_s["skills/verification-plan"]
     vp["SKILL.md"]
@@ -66,6 +69,7 @@ flowchart LR
   end
   ship --> prompts
   ship --> config
+  ship -- "final report" --> usage
   ship -- "Full manual test" --> build
   vp --> build --> runner
   smoke -. checks .-> runner
@@ -129,7 +133,7 @@ steps drop out of the chain.</sub>
 | Polish | **I** polish | yes | Refinement within the existing design: spacing, states, token drift, copy fit. |
 | Design audit | **F** design audit | no | `impeccable audit` against the design doc, WCAG AA and the copy guide. |
 | Code review | **D** review | no | Built-in `/code-review` at effort `high` on the PR; only critical bugs are fixed, each with a regression test. |
-| Manual test | **E** / **E-light** | plan only | Full: a verification plan published as a runner. Light: 3–6 checkboxes in the PR body. |
+| Manual test | **E** / **E-light** | plan only | Full: a verification plan of at most 8 cases, published as a runner. Light: 3–6 checkboxes in the PR body. |
 | *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage. |
 
 The review steps all follow the same loop: a report-only agent, triage in the main
@@ -158,6 +162,15 @@ sequenceDiagram
 Progress is kept in a state file at `.git/openspec-ship/<change>.md` (local, never
 committed), so a run that stops for days — waiting on a question or a manual test pass —
 resumes at the right step with the same pipeline.
+
+Each menu option carries a rough cost, and the final report has a token usage table: a row
+per agent, by step, including nested agents and the orchestrator. The state file records
+which agent ran which step, and `usage.mjs` adds up their transcripts in `~/.claude/projects`.
+To measure any session:
+
+```
+node plugins/openspec-ship/skills/openspec-ship/scripts/usage.mjs --session <session-id> [--json]
+```
 
 ### Requirements
 
