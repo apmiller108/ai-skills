@@ -7,7 +7,8 @@ leave the "Project rules" line out if it has none. `<safety>` is its `safety` bl
 verbatim, even when that is `none`. A line marked `<if …>` is included only
 when the condition holds. `<impeccable-dir>` and `<vp-dir>` are the absolute paths
 recorded in the state file. `<out>` is the orchestrator's own scratch folder (SKILL.md
-section 0), and `<agent-dir>` is the agent's (see "Shared blocks").
+section 0), and `<agent-dir>` is the agent's (see "Shared blocks"). `<git-dir>` is the
+output of `git rev-parse --absolute-git-dir`.
 
 Every prompt ends with a report format and a word cap. The cap is what keeps the
 orchestrator's context small, so keep it in.
@@ -39,15 +40,16 @@ Subagents don't see this file. Before spawning one, replace the lines `<standing
 `<removed-names>` (A, B and C), `<artifact-rules>` (the agents that change code: A, C, H
 and I) and `<report-lines>` in its prompt with the full text of these blocks, their own
 placeholders filled in. `<gate-form>` inside the first is the code block at the top of
-SKILL.md, with the log at `<agent-dir>/<gate>.log`. A prompt that still contains any of
-these placeholders isn't ready to send. Agent H has two reports, so it gets the report
-lines twice.
+SKILL.md, with the log at `<agent-dir>/<gate>.log`; its `<command>` and `<gate>` stay as they
+are, for the agent to fill in. A prompt that still contains any other placeholder named in
+this section isn't ready to send. Agent H has two reports, so it gets the report lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
 `C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`, `C-artifacts`,
-`C-verify`. Create it with plain `mkdir` just before spawning. If it exists, it belongs to
-an earlier spawn: use `<name>-2`, then `-3`. An agent continued with `SendMessage` keeps its folder.
+`C-verify`. Just before spawning: `mkdir -p <scratchpad> && mkdir <agent-dir>`. If it
+exists, it belongs to an earlier spawn: use `<name>-2`, then `-3`. An agent continued with
+`SendMessage` keeps its folder.
 
 `<standing-rules>`:
 
@@ -100,8 +102,8 @@ routes, UI strings that tests look for. Read them off the removed lines:
 
   git diff --no-ext-diff -U0 --merge-base <base> | grep -E '^(-|rename from)'
 
-Search the whole repo for each one, and for the other spellings it goes by (`mask_level`,
-`maskLevel`):
+Search the whole repo for each one, and for the other spellings it goes by (`sort_order`,
+`sortOrder`):
 
   git grep -nIF --untracked -e '<name>' -- ':/' ':!/openspec'
 
@@ -162,6 +164,8 @@ You're done when only such tasks are left.
 
 Project rules:
 <rules>
+<if pre-existing: Already failing before this change, not yours to fix; a run whose only
+failures are these passes: <the state file's pre-existing specs, flaky ones left out>.>
 
 You can't talk to the user. Where the skill says to pause and ask (an unclear task,
 a design problem in the proposal, a blocker), stop and report it as BLOCKED instead
@@ -174,7 +178,7 @@ Once the code is written, and before the checks, fix every hit of this search:
 
 When the tasks are done, run `<lint>` and the unit specs covering what you
 touched (<if test_paths: `<test_paths>`; otherwise: `<test>`>), and fix any failures.
-One you're sure was there before this change: leave it, and report it under TESTS.
+Another one you're sure was there before this change: leave it, and report it under TESTS.
 
 <standing-rules>
 
@@ -305,6 +309,8 @@ items, and nothing else except the artifact updates they call for:
 
 Project rules:
 <rules>
+<if pre-existing: Already failing before this change, not yours to fix; a run whose only
+failures are these passes: <the state file's pre-existing specs, flaky ones left out>.>
 
 Rules:
 - Review findings and items marked [BUG]: confirm each bug before fixing it. If you
@@ -622,6 +628,8 @@ usually means how it feels (instant, fluid, exact), not spectacle.
 
 Project rules:
 <rules>
+<if pre-existing: Already failing before this change, not yours to fix; a run whose only
+failures are these passes: <the state file's pre-existing specs, flaky ones left out>.>
 
 You can't talk to the user. Overdrive's "Propose Before Building" step is yours to
 do now, but instead of asking, STOP after proposing and report. Don't edit files in
@@ -677,6 +685,8 @@ ui.copy_guide: New UI strings follow <ui.copy_guide>.>
 
 Project rules:
 <rules>
+<if pre-existing: Already failing before this change, not yours to fix; a run whose only
+failures are these passes: <the state file's pre-existing specs, flaky ones left out>.>
 
 <if ui.skip: Skip: <ui.skip>.> To see the UI, start `<ui.run>` in the background
 and screenshot into <agent-dir> as <ui.view> describes; one inspection round, one fix

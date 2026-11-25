@@ -27,8 +27,7 @@ context small by design:
   ) > "$LOG" 2>&1; rc=$?; tail -n 40 "$LOG"; exit $rc
   ```
 
-  One gate per Bash call, whole, because shell state doesn't carry over. Create `<out>`
-  first. Give each run its own log (`…-4-full.log`, then `…-4-full-2.log`), so a background
+  One gate per Bash call, whole, because shell state doesn't carry over. Give each run its own log (`…-4-full.log`, then `…-4-full-2.log`), so a background
   run never shares one. With `run_in_background` the form is the same, and the
   notification's exit code is the verdict. If the tail isn't enough, search the log.
 - Ask every agent for a capped report. The templates in
@@ -61,7 +60,8 @@ command a step needs, ask the user instead of running it.
 
 **Scratch folders.** `<scratchpad>` is the session's scratch directory. `<out>` is
 `<scratchpad>/ship/`: yours, for files that outlive a step (PR body, built runner, results,
-config draft). Each spawned agent gets its own folder, `<agent-dir>`, named as in the
+logs). Both are per session, so `mkdir -p <out>` at the start of each one, resumes
+included. Each spawned agent gets its own folder, `<agent-dir>`, named as in the
 reference's "Shared blocks". You choose every path a later step reads and pass it in the
 prompt; the plan JSON goes in `.git` (step 6) because it has to outlive the session. Don't
 delete or overwrite anything in an agent's folder, or elsewhere outside the repo, that you
@@ -552,6 +552,17 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 <attribution line the session specifies for PR descriptions>
 ```
 
+**Every later edit of the body** starts from the live one; the file in `<out>` can be old,
+and pushing it would erase what the user ticked or wrote on GitHub. Fetch, edit the file and
+push it back, with nothing in between:
+
+```bash
+mkdir -p <out> && F="<out>/<change>-pr-body.md" && gh pr view <n> --json body -q .body > "$F" && [ -s "$F" ]
+gh pr edit <n> --body-file <out>/<change>-pr-body.md   # separate call, after the edit
+```
+
+If the fetch doesn't exit 0, stop: an empty body isn't the PR's.
+
 Leave out the UI lines when the change had no UI steps. The title is plain English, not
 the slug ("Scrub personal data from logs at write time", not "log-scrubbing").
 
@@ -568,7 +579,7 @@ fixing. A finding it can't confirm gets dropped, with a note.
 
 Fix accepted findings with the fix agent, which also adds a regression test for each bug.
 Gate: as in "Spec gates", `<full>` included if it applies. Commit as
-`Fixes <what> from review`, push, and change the PR body's **Review:** line to the tally
+`Fixes <what> from review`, push, and set the PR body's **Review:** line (step 4) to the tally
 (`3 findings, 1 critical fixed, 2 dropped`).
 
 ## 6. Manual test plan (per `manual-plan:`)
@@ -637,21 +648,15 @@ this step instead of the short plan.
 Spawn the **light test-plan agent** (E-light in the reference). It sends back a
 `## Manual verification` section: 3–6 unchecked `- [ ]` items, each one action and its
 expected result, covering only what automation can't. The `DENIED:` and `LEFTOVERS:` lines
-come before that heading: act on them, and leave them out of the PR. Add the section, from
-its heading down, to the PR body above the attribution line with `gh pr edit <n>
---body-file <out>/<change>-pr-body.md`, set the **Manual test:** line to `light checklist
-in this PR`, give the user the PR link, and **stop**.
+come before that heading: act on them, and leave them out of the PR. Edit the PR body (step
+4): add the section, from its heading down, above the attribution line, and set the
+**Manual test:** line to `light checklist in this PR`. Give the user the PR link, and
+**stop**.
 
-When the user says they've tested, read it back:
-
-```bash
-gh pr view <n> --json body -q .body | sed -n '/^## Manual verification/,/^## /p'
-```
-
-It passes when the section came back with items and no `- [ ]` is left; an empty result
-means the read failed (the pipe hides `gh`'s exit code), not that it passed. An item the
-user reports as failing goes to the fix agent as in "Failures" above; after the fix, the
-user re-ticks it. Tally: `manual: light, 5/5 checked`.
+When the user says they've tested, fetch the body (step 4) and read the section from the
+file: `sed -n '/^## Manual verification/,/^## /p' <file>`. It passes when it has items and
+no `- [ ]` is left. An item the user reports as failing goes to the fix agent as in
+"Failures" above; after the fix, the user re-ticks it. Tally: `manual: light, 5/5 checked`.
 
 ## 7. Archive and merge
 
