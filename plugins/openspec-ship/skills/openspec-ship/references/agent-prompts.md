@@ -70,8 +70,8 @@ Files: your scratch folder is <agent-dir>. Screenshots, temp files, test data an
 output go there, not in /tmp or the folder above it. Outside it, write only the edits
 this prompt asks for, the output paths it names, and what the project's own commands
 produce inside the repo. Where this prompt says not to edit files, the scratch folder
-is still yours to use. Never delete or overwrite a path you didn't create, unless it's one of
-those edits or outputs.
+is still yours to use. Never delete or overwrite a path you didn't create, unless it's
+one of those edits or outputs.
 
 An agent you launch doesn't see these rules: paste them into its prompt. What it
 reports as denied or left behind, you report too.

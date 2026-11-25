@@ -118,9 +118,10 @@ actually run:
   Each is an item in section `S`, with fields for what the run log needs (commit, run ID,
   fixtures used).
 - **Order for safety.** First-launch-only checks come first. A one-shot upgrade runs on
-  the first launch against existing data, with its backup in Setup. Anything that replaces or deletes data runs after
-  every case that needs that data. Snapshot before and after the expensive setup. Each
-  platform gets its own `order` and `phases`, and they don't have to match.
+  the first launch against existing data, with its backup in Setup. Anything that
+  replaces or deletes data runs after every case that needs that data. Snapshot before
+  and after the expensive setup. Each platform gets its own `order` and `phases`, and
+  they don't have to match.
 - **Exit criteria** use the declarative kinds so the runner can tick them live.
 - Keep the voice plain and specific, matching the example.
 

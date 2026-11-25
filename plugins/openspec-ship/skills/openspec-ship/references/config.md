@@ -29,8 +29,8 @@ user to write YAML. Draft it yourself:
      mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed`: merge method.
 2. Write the draft to `<out>/openspec-ship.yaml` and show it to the user in one block,
    with a line per key you couldn't infer (for example "no full-suite command found;
-   leaving `full` out"). Put `safety` first, with what you found for each command. Found nothing shared?
-   Propose `none` and say what you checked.
+   leaving `full` out"). Put `safety` first, with what you found for each command. Found
+   nothing shared? Propose `none` and say what you checked.
 3. Ask once: write it as shown, or edit first. The question names the `safety` value, so
    the answer covers it. Apply edits, then write the file.
 4. Commit it on the change branch together with the proposal, as `Adds openspec-ship
@@ -47,9 +47,9 @@ the command doesn't exist (not because tests are red), say so and offer to fix t
 ## Keys
 
 `commands.lint`, `commands.test` and `safety` are required. `safety` may be `none`, but
-the user has to say so; a missing key never means `none`. Leave out any other section that
-doesn't apply. A missing `ui` hides the UI review steps; a missing `manual_test` limits the manual
-test choice to Light and None.
+the user has to say so; a missing key never means `none`. Leave out any other section
+that doesn't apply. A missing `ui` hides the UI review steps; a missing `manual_test`
+limits the manual test choice to Light and None.
 
 ```yaml
 base: main                # branch PRs target. Default: main

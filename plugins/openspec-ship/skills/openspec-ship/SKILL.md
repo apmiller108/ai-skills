@@ -215,9 +215,8 @@ agents' prompts if they could trip on it. Deleting or stopping it is the user's 
 
 ## Spec gates
 
-Specs aren't optional and don't need to be asked for:
-
-Run every gate the way `safety` says (section 0).
+Specs aren't optional and don't need to be asked for. Run every gate the way `safety`
+says (section 0):
 
 - **After every step that changes code** (apply, overdrive, polish, or the fix agent for
   critique, refactor, audit, review or manual-test findings): `<lint>` and `<test>`,
