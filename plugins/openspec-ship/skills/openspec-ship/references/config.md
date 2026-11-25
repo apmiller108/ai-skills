@@ -27,9 +27,9 @@ user to write YAML. Draft it yourself:
      and any `DESIGN.md` or copy guide.
    - `git log --oneline -20`: commit subject style. `gh repo view --json
      mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed`: merge method.
-2. Write the draft to the scratchpad and show it to the user in one block, with a line
-   per key you couldn't infer (for example "no full-suite command found; leaving `full`
-   out"). Put `safety` first, with what you found for each command. Found nothing shared?
+2. Write the draft to `<out>/openspec-ship.yaml` and show it to the user in one block,
+   with a line per key you couldn't infer (for example "no full-suite command found;
+   leaving `full` out"). Put `safety` first, with what you found for each command. Found nothing shared?
    Propose `none` and say what you checked.
 3. Ask once: write it as shown, or edit first. The question names the `safety` value, so
    the answer covers it. Apply edits, then write the file.

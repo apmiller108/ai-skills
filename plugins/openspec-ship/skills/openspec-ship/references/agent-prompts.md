@@ -6,7 +6,8 @@ come from `.claude/openspec-ship.yaml`. `<rules>` is that file's `rules` block, 
 leave the "Project rules" line out if it has none. `<safety>` is its `safety` block,
 verbatim, even when that is `none`. A line marked `<if …>` is included only
 when the condition holds. `<impeccable-dir>` and `<vp-dir>` are the absolute paths
-recorded in the state file.
+recorded in the state file. `<out>` is the orchestrator's own scratch folder (SKILL.md
+section 0), and `<agent-dir>` is the agent's (see "Shared blocks").
 
 Every prompt ends with a report format and a word cap. The cap is what keeps the
 orchestrator's context small, so keep it in.
@@ -39,6 +40,12 @@ and `<report-lines>` in its prompt with the full text of these blocks, their own
 placeholders filled in. A prompt that still contains either placeholder isn't ready to
 send. Agent H has two reports, so it gets the report lines twice.
 
+`<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
+(`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
+`C-refactor`, `C-audit`, `C-full`, `C-review`, `C-manual`, `C-ci`. Create it with plain
+`mkdir` just before spawning. If it exists, it belongs to an earlier spawn: use
+`<name>-2`, then `-3`. An agent continued with `SendMessage` keeps its folder.
+
 `<standing-rules>`:
 
 ```
@@ -54,13 +61,20 @@ data points at: before you run against a copy, check it for absolute paths, expo
 folders, sync targets and caches that lead back to the real thing.
 
 Denied commands: a command refused by a permission prompt, rule, hook or sandbox is a
-decision by the user, and a command Safety rules out counts as denied. Run it once at
-most: don't retry it, reword it, or look for another route to the same effect (another
-tool, a script, another agent). Skip the part that needed it, or stop and report
-BLOCKED if the rest depends on it, and report it either way.
+decision by the user, and a command Safety rules out counts as denied. Until you're
+told the user has allowed it, don't retry it, reword it, or look for another route to
+the same effect (another tool, a script, another agent). Skip the part that needed it,
+or stop and report BLOCKED if the rest depends on it, and report it either way.
+
+Files: your scratch folder is <agent-dir>. Screenshots, temp files, test data and tool
+output go there, not in /tmp or the folder above it. Outside it, write only the edits
+this prompt asks for, the output paths it names, and what the project's own commands
+produce inside the repo. Where this prompt says not to edit files, the scratch folder
+is still yours to use. Never delete or overwrite a path you didn't create, unless it's one of
+those edits or outputs.
 
 An agent you launch doesn't see these rules: paste them into its prompt. What it
-reports as denied, you report too.
+reports as denied or left behind, you report too.
 ```
 
 `<report-lines>`:
@@ -68,6 +82,9 @@ reports as denied, you report too.
 ```
 Always include this, outside the word cap, one line per item:
 DENIED: <the command, word for word; what it was for; "skipped <what>" or "BLOCKED"; or "none">
+LEFTOVERS: <what's still in your scratch folder, one phrase; processes still running;
+  each path written outside it that this prompt didn't name (say how, e.g. a script with
+  a fixed /tmp path); or "none">
 ```
 
 ## A. Apply agent
@@ -225,9 +242,8 @@ Review PR #<n> (branch `<change>`) in <repo>.
 
 Invoke the Skill tool with skill `code-review` (the built-in one, not a plugin's
 `<plugin>:code-review`) and args `high <n>`, and follow it. Don't use --fix or
---comment, and don't edit files. Where the skill has you launch agents, the standing
-rules below go into their prompts. Where it runs as an agent of its own, it can't see
-them: report any denial its result mentions as yours.
+--comment, and don't edit files. If the skill runs as an agent of its own, it can't see
+the standing rules below: report any denial or stray write its result mentions as yours.
 
 The orchestrator can't see ReportFindings output, so after the review, also put
 the findings in your final message.
@@ -249,7 +265,8 @@ If there are no findings, say so.
 Write a manual test plan for the OpenSpec change `<change>` (PR #<n>, branch
 `<change>`) in <repo>, as a plan JSON for the interactive test
 runner. The user will run it by hand before the change is archived and merged.
-Write only the plan JSON and the built HTML; don't edit source or commit.
+Outside your scratch folder, write only the plan JSON and the built HTML, at the paths
+given below; don't edit source or commit.
 
 Inputs: openspec/changes/<change>/ (proposal, design, specs, tasks), the diff
 (`git diff <base>...HEAD`), and the tests that already cover it.
@@ -297,12 +314,12 @@ new ids, and never renumber, rename or reuse an existing id or field key.>
 
 Save it to <git-dir>/openspec-ship/<change>.plan.json, then build and smoke-test:
 
-  node <vp-dir>/scripts/build.mjs <plan.json> --html <scratchpad>/<change>-test.html
-  NODE_PATH=<node_modules with jsdom> node <vp-dir>/scripts/smoke.cjs <scratchpad>/<change>-test.html
+  node <vp-dir>/scripts/build.mjs <plan.json> --html <out>/<change>-test.html
+  NODE_PATH=<node_modules with jsdom> node <vp-dir>/scripts/smoke.cjs <out>/<change>-test.html
 
 The smoke test needs jsdom. Use the repo's node_modules if it has jsdom;
-otherwise `npm i --prefix <scratchpad>/vp jsdom` and use
-<scratchpad>/vp/node_modules. Fix the JSON until both pass with no warnings.
+otherwise `npm i --prefix <agent-dir>/vp jsdom` and use
+<agent-dir>/vp/node_modules. Fix the JSON until both pass with no warnings.
 Don't publish.
 
 <standing-rules>
@@ -346,7 +363,7 @@ Then exactly this markdown, and nothing after it:
 ## Manual verification
 
 Build: <dev or production build, with the command>, <why, a few words>
-<unless safety is `none`: Data: <the throwaway data to test against and how to start
+<if safety isn't `none`: Data: <the throwaway data to test against and how to start
 on it; no personal paths, the PR may be public>>
 
 - [ ] <one action> → <the observable expected result>
@@ -419,7 +436,7 @@ Project rules:
 Look at the running app. Start it in the background with `<ui.run>`, then:
 <ui.view>
 Set up the states the change adds (clicks, empty, loading and error states) and
-screenshot each one into <scratchpad>. Read the screenshots. Stop the app before
+screenshot each one into <agent-dir>. Read the screenshots. Stop the app before
 you report. If it won't start, say so and review from source.
 
 Scope: judge what the diff introduced. Skip the heuristic score table<if ui.skip:
@@ -506,8 +523,8 @@ FIT: <one line per direction on how it fits the product>
 When resumed with a pick, build only that direction, only on the change's surfaces.
 Respect prefers-reduced-motion and the design doc's tokens. Add the direction to
 openspec/changes/<change>/design.md and a checked task for it to tasks.md. Verify it
-in the running app: start `<ui.run>` in the background and screenshot as
-<ui.view> describes, at most two fix rounds, then stop the app. Finish with
+in the running app: start `<ui.run>` in the background and screenshot into <agent-dir>
+as <ui.view> describes, at most two fix rounds, then stop the app. Finish with
 `<lint>` and `<test>`.
 
 Phase 2 report (≤200 words):
@@ -542,9 +559,9 @@ Project rules:
 <rules>
 
 <if ui.skip: Skip: <ui.skip>.> To see the UI, start `<ui.run>` in the background
-and screenshot as <ui.view> describes; one inspection round, one fix batch, at
-most one confirming round, then stop the app. You can't talk to the user: where
-polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
+and screenshot into <agent-dir> as <ui.view> describes; one inspection round, one fix
+batch, at most one confirming round, then stop the app. You can't talk to the user:
+where polish says to ask, report it instead. Finish with `<lint>` and `<test>`.
 
 <standing-rules>
 

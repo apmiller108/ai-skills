@@ -82,6 +82,10 @@ accept/reject decision and every conversation with you. Subagents do the reading
 editing, and send back short, capped reports. A skill can't `/compact`, so this split is
 what keeps the main context small enough to take a change all the way to merge.
 
+Every agent works under the same standing rules: follow the project's `safety` block, stop
+at a denied command and report it (the orchestrator asks you), and write temp files only
+to its own scratch folder.
+
 The run opens with one menu where you toggle the optional steps and pick the manual
 test plan. Branch, PR and merge always run; specs (lint + unit) run after every step
 that changes code, and red is never committed.
