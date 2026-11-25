@@ -591,13 +591,19 @@ you read them back yourself instead of relying on a pasted summary.
 Spawn the **test-plan agent** (general-purpose). It writes a plan JSON covering only what
 automation can't, to `$(git rev-parse --git-dir)/openspec-ship/<change>.plan.json` (next to
 the state file, so it survives across sessions), builds the runner HTML to
-`<out>/<change>-test.html`, and smoke-tests it. Then publish the built HTML yourself:
+`<out>/<change>-test.html`, and smoke-tests it.
 
-- Artifact `publish` with `file_path` = the built HTML, `icon: "checklist"`, a
-  one-sentence `description`, and `capabilities: {"db": {}}`.
-- Put the returned URL in the plan JSON as `artifactUrl` and in the state file as
+Then spawn the **publishing agent** (E-publish in the reference). Don't read or publish the
+HTML yourself: the Artifact tool requires reading the whole page, which would stay in your
+context until the merge.
+
+- `published`: put the URL in the plan JSON as `artifactUrl` and in the state file as
   `test-plan:`.
-- Run one `ArtifactData` `list` on `results` to confirm the store is reachable.
+- `UNAVAILABLE` (its session lacks the tools): publish it yourself, following that
+  prompt's steps.
+- `BLOCKED`, or a store that isn't reachable: tell the user, and don't publish it yourself.
+  A refused publish is a denied command. If the page held something it shouldn't, agent E
+  fixes the plan first.
 
 Give the user the link and the agent's outline (case ids and titles, build to test, any
 CUT cases), and **stop**. The runner has a tab per configured platform, and the branch
@@ -629,8 +635,8 @@ PR body's **Manual test:** line with the tally (`6/6 required pass`, or `5/6, 1 
 verbatim. Run the gate, commit (`Fixes <what> found in manual testing`), push, and tell the
 user which cases to re-run. They re-mark those cases in the same runner. If a fix needs a
 new case, have the test-plan agent append it with a **new** id (never renumber or reuse
-one; results are keyed by id), rebuild, and republish with `url: <artifactUrl>` and no
-`capabilities`. The scratchpad is per session, so on a resumed session rebuild the HTML
+one; results are keyed by id), rebuild, and have a new publishing agent republish it to
+`artifactUrl`. The scratchpad is per session, so on a resumed session rebuild the HTML
 from the plan JSON before republishing.
 
 For a large or risky change (migrations, destructive flows, cross-platform paths), the

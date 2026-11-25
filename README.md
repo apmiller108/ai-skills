@@ -127,7 +127,7 @@ flowchart TD
   audit --> full["4 · Full suite + open PR"]
   full --> review["5 · Code review<br/>agent D → C"]:::opt
   review --> manual{"6 · Manual test"}
-  manual -- Full --> runner["agent E builds plan<br/>→ interactive runner"]
+  manual -- Full --> runner["agent E builds plan<br/>→ E-publish → interactive runner"]
   manual -- Light --> light["agent E-light<br/>→ PR checklist"]
   manual -- None --> merge
   runner --> results["Read results back<br/>(failures → fix agent C)"]
