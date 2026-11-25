@@ -15,8 +15,22 @@ context small by design:
 
 - Don't read source files or full diffs yourself. Use `git diff --stat <base>...HEAD` and
   the agents' reports.
-- Trim command output (`2>&1 | tail -40`). A passing suite needs one line; a failing one
-  needs the failures, not the log.
+- Trim command output: a passing suite needs one line; a failing one needs the failures,
+  not the log. Run every gate (lint, test, full, a build, any command whose pass or fail
+  you act on) in the **gate form**, which trims and keeps the exit code. A pipe into
+  `tail` or `head` returns *their* status, so a failing suite reports success.
+
+  ```bash
+  LOG="<out>/<change>-<step>-<gate>.log"; (
+    set -eo pipefail
+    <command>
+  ) > "$LOG" 2>&1; rc=$?; tail -n 40 "$LOG"; exit $rc
+  ```
+
+  One gate per Bash call, whole, because shell state doesn't carry over. Create `<out>`
+  first. Give each run its own log (`…-4-full.log`, then `…-4-full-2.log`), so a background
+  run never shares one. With `run_in_background` the form is the same, and the
+  notification's exit code is the verdict. If the tail isn't enough, search the log.
 - Ask every agent for a capped report. The templates in
   `references/agent-prompts.md` already do.
 - When an agent stops on a question, get the answer from the user and continue the
@@ -253,7 +267,7 @@ says (section 0):
 
 - **After every step that changes code** (apply, overdrive, polish, or the fix agent for
   critique, refactor, audit, review or manual-test findings): `<lint>` and `<test>`,
-  trimmed as in step 2. Red never gets committed; failures go back to the agent that made
+  in the gate form. Red never gets committed; failures go back to the agent that made
   the change.
 - **Before the PR**, whatever was selected: lint, test and `<full>` (step 4).
 - **After a fix touching `<full_after_changes_in>`**, once the PR exists: `<full>` again.
@@ -295,14 +309,8 @@ When it reports:
   the user word for word, with the agent's options. Send the answer back to the same agent
   with `SendMessage`. If the answer changes the proposal, the agent updates the artifacts
   as part of resuming.
-- **Done**: confirm it yourself (this is the "tests pass" gate):
-
-  ```bash
-  <lint> 2>&1 | tail -20
-  <test> 2>&1 | tail -40
-  ```
-
-  If either fails, send the failures back to agent A and repeat. Don't commit red.
+- **Done**: confirm it yourself (this is the "tests pass" gate): run `<lint>`, then
+  `<test>`, each in the gate form. If either fails, send the failures back to agent A and repeat. Don't commit red.
 
 Commit everything as one commit: `Implements <change>` plus a one-line body from the
 agent's summary. Commit message style is in "Commits" below. Save the report's
@@ -449,15 +457,8 @@ accepted findings with the fix agent, run the lint and unit gate, and commit as
 
 ## 4. Full suite, then the PR
 
-Run the whole local gate before anyone else looks at the branch:
-
-```bash
-<lint> 2>&1 | tail -20
-<test> 2>&1 | tail -40
-<full> 2>&1 | tail -60     # if configured
-```
-
-Run `<full>` whatever the change is. It's usually slow, so run it with
+Run the whole local gate before anyone else looks at the branch: `<lint>`, `<test>` and,
+if configured, `<full>`, each in the gate form. Run `<full>` whatever the change is. It's usually slow, so run it with
 `run_in_background` and wait to be notified. If it fails, give the failures to a fix
 agent, re-run, and commit as `Fixes <what>`.
 
@@ -583,7 +584,8 @@ When the user says they've tested, read it back:
 gh pr view <n> --json body -q .body | sed -n '/^## Manual verification/,/^## /p'
 ```
 
-It passes when no `- [ ]` is left. An item the user reports as failing goes to the fix
+It passes when the section came back with items and no `- [ ]` is left; an empty result
+means the read failed (the pipe hides `gh`'s exit code), not that it passed. An item the user reports as failing goes to the fix
 agent as in "Failures" above; after the fix, the user re-ticks it. Tally:
 `manual: light, 5/5 checked`.
 
@@ -596,8 +598,10 @@ two back as in step 6 rather than taking it on trust.
 1. Run the `openspec-archive-change` skill for the change here in the main session. It
    asks questions, and it's small. It syncs the delta specs into `openspec/specs/`.
 2. Commit as `Archives <change>` and push.
-3. Wait for CI: `gh pr checks <n> --watch`. If anything fails, fix it and push again;
-   don't merge red. A repo with no CI checks reports none; that's fine.
+3. Wait for CI: `gh pr checks <n> --watch` in the gate form, in the background. Exit 0 is
+   green. If anything fails, fix it and push again; don't merge red. A repo with no CI
+   checks exits non-zero with "no checks reported", and that's fine; a repo that has CI
+   says the same just after a push, so wait and run it again.
 4. Merge with the configured method: `gh pr merge <n> --<merge>`.
 5. Switch back with `git switch <base> && git fetch origin <base> && git merge --ff-only
    origin/<base>`, and report the merge commit in one line.

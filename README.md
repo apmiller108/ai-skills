@@ -92,7 +92,8 @@ to its own scratch folder.
 
 The run opens with one menu where you toggle the optional steps and pick the manual
 test plan. Branch, PR and merge always run; specs (lint + unit) run after every step
-that changes code, and red is never committed.
+that changes code, and red is never committed. Every gate keeps its own exit code, in the
+background too; its output goes to a log and only the tail is read.
 
 ```mermaid
 flowchart TD

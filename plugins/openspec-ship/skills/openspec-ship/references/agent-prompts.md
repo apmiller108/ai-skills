@@ -37,8 +37,10 @@ orchestrator's context small, so keep it in.
 
 Subagents don't see this file. Before spawning one, replace the lines `<standing-rules>`,
 `<removed-names>` (A, B and C) and `<report-lines>` in its prompt with the full text of
-these blocks, their own placeholders filled in. A prompt that still contains one of those
-lines isn't ready to send. Agent H has two reports, so it gets the report lines twice.
+these blocks, their own placeholders filled in. `<gate-form>` inside the first is the code
+block at the top of SKILL.md, with the log at `<agent-dir>/<gate>.log`. A prompt that still
+contains any of these placeholders isn't ready to send. Agent H has two reports, so it
+gets the report lines twice.
 
 `<agent-dir>` is `<scratchpad>/<name>/`, one per spawn. `<name>` is the agent's letter
 (`A`, `G1`, `E-light`); agent C runs at several steps, so it adds the step: `C-critique`,
@@ -78,6 +80,11 @@ runs this prompt names, and throwaway benchmarks or scripts kept in the scratch 
 Build output and caches that git ignores are fine; otherwise leave the repo as it is:
 its files (no auto-fix, formatter or snapshot update), git's state (index, branches,
 stash, worktrees) and what's installed in it.
+
+Exit codes: run lint, tests and any other command whose result you report in this form,
+whole, in one Bash call, with a new log name per run. Piping into tail or head instead
+hides a failure.
+<gate-form>
 
 An agent you launch doesn't see these rules: paste them into its prompt. What it
 reports as denied or left behind, you report too.

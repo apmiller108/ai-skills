@@ -61,6 +61,9 @@ commands:
   test_paths: npx vitest run <paths>   # optional: run only some specs (apply agent)
   full: npm run test:e2e  # optional: slow suite, run before the PR (in the background)
 
+# A command with several parts joins them with && only. In `a && b; c` a failing `a` is
+# lost, and nothing can recover it.
+
 # Required: how to run this without touching real user data. `safety: none` if nothing
 # here can reach any. Every agent gets it verbatim, and it overrides the commands above.
 safety: |
