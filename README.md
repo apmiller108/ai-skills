@@ -27,6 +27,7 @@ claude plugin install openspec-ship@ai-skills
 plugins/openspec-ship/
 ├── .claude-plugin/plugin.json           plugin manifest
 ├── shared/agent-blocks.md               standing rules and report lines for agent prompts
+├── shared/follow-ups.md                 what a follow-up records, and how they get filed
 └── skills/
     ├── openspec-ship/
     │   ├── SKILL.md                     the orchestrator: menu, steps 0–7, commits, state file
@@ -67,6 +68,7 @@ flowchart LR
     triage["references/triage.md"]
   end
   blocks["shared/agent-blocks.md"]
+  fups["shared/follow-ups.md"]
   subgraph vp_s["skills/verification-plan"]
     vp["SKILL.md"]
     build["scripts/build.mjs"]
@@ -86,7 +88,7 @@ flowchart LR
   ship -- "Full manual test" --> build
   ship -- "Refactor step" --> hrprompt & triage
   hr --> hrprompt & triage
-  ship & hr --> blocks
+  ship & hr --> blocks & fups
   vp --> build --> runner
   smoke -. checks .-> runner
   ship --> os & imp & cr & gh
@@ -133,7 +135,8 @@ flowchart TD
   runner --> results["Read results back<br/>(failures → fix agent C)"]
   light --> results
   results --> merge["7 · Archive spec, CI green, merge"]
-  merge --> done([merged])
+  merge --> file{{"Offer to file follow-ups<br/>(only if there are any)"}}
+  file --> done([merged])
 
   classDef opt fill:#dbe6fd,stroke:#4a6fd1,color:#10213f
   classDef ui fill:#ecdcfb,stroke:#8a4fd1,color:#2b1240
@@ -151,7 +154,7 @@ steps drop out of the chain.</sub>
 | Refactor | **B** refactor | no | "Knowing what we know now": numbered STRUCTURAL / CODE findings, each with the risk of changing it and how to check that. Structural ones, and any that reverse a `design.md` decision, are shown to you before they're applied. |
 | Polish | **I** polish | yes | Refinement within the existing design: spacing, states, token drift, copy fit. |
 | Design audit | **F** design audit | no | `impeccable audit` against the design doc, WCAG AA and the copy guide. |
-| Code review | **D** review | no | Built-in `/code-review` at effort `high` on the PR; only critical bugs are fixed, each with a regression test. |
+| Code review | **D** review | no | Built-in `/code-review` at effort `high` on the PR; only critical bugs the change caused are fixed, each with a regression test; other real ones become follow-ups. |
 | Manual test | **E** / **E-light** | plan only | Full: a verification plan of at most 8 cases, published as a runner. Light: 3–6 checkboxes in the PR body. |
 | *any fix* | **C** fix | yes | Applies the accepted findings, copied verbatim from the triage: a regression test for each behaviour fix, and each finding's risk check, measured. |
 
@@ -185,6 +188,13 @@ nothing is archived with one that's neither passed nor waived by you.
 
 An agent that departs from a recorded decision updates `design.md` in the same pass and
 reports it; step 7 checks each reported deviation before the change is archived.
+
+Work that's worth doing but doesn't belong in the change (a finding in untouched code, a
+spec that already failed, a manual failure the change didn't cause) is recorded as a
+follow-up when it's triaged, and listed in the PR. After the merge, what's still open is
+checked against the merged code and your existing issues, and one question asks which to
+file. Nothing is filed without your pick, and on a public repo the issues say nothing the
+code and PR don't already show.
 
 Progress is kept in a state file at `.git/openspec-ship/<change>.md` (local, never
 committed), so a run that stops for days — waiting on a question or a manual test pass —
@@ -242,7 +252,7 @@ It starts from what the build taught: your notes, the session that built it, or 
 learnings an `openspec-ship` run saved. A fresh agent that only reports reviews the diff and
 the code around it, and every finding names a concrete cost, the risk of changing it and
 how to check that. The findings are triaged, you pick which to apply, and nothing is
-committed unless you ask.
+committed unless you ask. At the end it offers to file the follow-ups as issues.
 
 ### Use
 

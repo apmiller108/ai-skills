@@ -51,15 +51,17 @@ the change's and flaky; 1 of 2, show the user the counts and ask.
 
 - **The change's**: send it to the fix agent, with the counts if it's intermittent.
 - **Pre-existing**: don't fix it here. Tell the user in one line, record it in the state
-  file's `pre-existing:`, name it in the PR body, and rely on CI for that spec.
-- **Flaky**: tell, record and name it the same way, marked flaky. It excuses nothing: the
-  base never showed it, so if it fails again, check again.
+  file's `pre-existing:`, name it in the PR body, and rely on CI for that spec. It's also
+  a follow-up (SKILL.md, "Follow-ups"), with the counts and the error as evidence.
+- **Flaky**: tell, record and name it the same way, marked flaky, follow-up included. It
+  excuses nothing: the base never showed it, so if it fails again, check again.
 
 A gate is **green** when it exits 0, or when every failure in it is recorded as
 pre-existing with the same error. In the second case compare the failures one by one: the
 exit code can't tell you about a new one. A failure that isn't recorded, or fails with a
 new error, gets its own check. If the branch merges the base in, the merge-base moves:
-clear the list and check again.
+clear the list and check again. A follow-up whose spec no longer reproduces on the new
+base is resolved; one that still does keeps its entry.
 
 Agents get the list through the `<if pre-existing: …>` line in their prompts, filled from
 the state file each time one is spawned; send it to an agent you continue.

@@ -17,9 +17,9 @@ what keeps it from becoming churn.
   in a gitignored file: tell the user about those, since no agent edits them.
 - **Follow-up, not now**: a worthwhile change to code the diff doesn't touch, one
   that's L-sized compared with the change, or one whose Risk users would feel and
-  whoever applies it can't check. List it with its Risk (in the PR body, if there is one);
-  the user decides whether it becomes an issue. The agent's approach note goes here too,
-  untriaged, unless it's "none".
+  whoever applies it can't check. Record it with its Risk, as `shared/follow-ups.md` at the
+  plugin root says; the user decides whether it becomes an issue. The agent's approach note
+  goes here too, untriaged, unless it's "none".
 - **Drop**: formatting, import order, renaming that's down to taste, comment wording,
   splitting a function that reads fine, micro-optimisations off the hot path,
   speculative generality ("in case we add another backend"), anything that only

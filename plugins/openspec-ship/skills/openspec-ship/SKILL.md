@@ -93,11 +93,13 @@ didn't create.
 resolve it to an absolute path now, record it as `vp-dir:`, and pass it into prompts as
 `<vp-dir>`.
 
-Step 3's prompt and rubric belong to the `hindsight-refactor` skill, and the blocks every
-prompt shares are at the plugin root. Only you read these, so they aren't recorded:
+Step 3's prompt and rubric belong to the `hindsight-refactor` skill, and what the skills
+share is at the plugin root. Only you read these, so they aren't recorded:
 
 - `<hr-dir>`: `${CLAUDE_SKILL_DIR}/../hindsight-refactor`
 - `<shared-blocks>`: `${CLAUDE_SKILL_DIR}/../../shared/agent-blocks.md`
+- `<follow-ups>`: `${CLAUDE_SKILL_DIR}/../../shared/follow-ups.md`, read before you record
+  the first follow-up, and on a resume that has any
 
 ## Inputs
 
@@ -129,7 +131,12 @@ critique: 9 findings, 3 fixed, 1 follow-up, 5 dropped   # or "skipped (deselecte
 polish: 6 edits in 2 files   # or skipped
 refactor: 7 findings, 3 applied, 1 follow-up, 3 dropped
 design: 5 findings, 2 fixed, 3 dropped   # or "skipped (no UI changes)"
-follow-ups: - extract the path-masking table into a shared module (M)
+follow-ups:           # one entry per follow-up, with the fields in <follow-ups>
+  - id: F1
+    from: refactor 4b
+    what: extract the path-masking table into a shared module
+    …
+    issue:              # empty until settled
 review: pending
 test-plan: https://claude.ai/artifact/…   # runner; plan JSON sits next to this file
 manual: 4/6 required pass, 1 fail (A3)
@@ -169,8 +176,14 @@ required. If you add it there, send the expanded standing rules along with your 
 any agent you continue, and if a manual plan is already out, ask the user to hold off while
 agent E or E-light revises it.
 
-Then resume after the state file's `step`, with its `pipeline:` (don't show the menu again
-unless the user asks to change it; a state file without `pipeline:` predates the menu, so
+**Already merged or abandoned** (`step: 7-merged`, or an `abandoned:` line): if any
+follow-up's `issue:` is empty, offer to file ("Follow-ups") and report; otherwise say it's
+finished and change nothing. If the PR is merged but `step:` isn't `7-merged`, continue at
+item 5 of step 7. An abandoned change starts again only if the user asks: remove the line,
+then resume. A `follow-ups:` value in the old one-line form becomes entries first.
+
+Otherwise resume after the state file's `step`, with its `pipeline:` (don't show the menu
+again unless the user asks to change it; a state file without `pipeline:` predates the menu, so
 treat it as every step on). Paths recorded in a state file can go stale after a plugin
 update: re-resolve `vp-dir` and `impeccable-dir` if they no longer exist. If `accepted:`
 is set, that step's fixes were never committed: spawn its fix agent with it and the
@@ -280,6 +293,26 @@ hold its predecessor's unfinished edits).
 **`LEFTOVERS:`** doesn't stop the run. Anything outside the agent's folder or still running
 goes in the step's progress line and the state file's `leftovers:`, and into the next
 agents' prompts if they could trip on it. Deleting or stopping it is the user's call.
+
+## Follow-ups
+
+Work worth doing that doesn't belong in the change. Record each in the state file **when you
+triage it**, in the form `<follow-ups>` gives, so the list survives a resume or a run that
+stops early. Every step can add one:
+
+- a finding the step's rubric calls a follow-up, and the hindsight agent's approach note;
+- what the polish agent listed under NOT CHANGED (step 3a);
+- an item the fix agent backed out over its `Risk:` check, or a further change it reported
+  as needed but didn't make;
+- a pre-existing or flaky spec, from the baseline check;
+- a manual failure the user says the change didn't cause (step 6).
+
+If a later fix resolves one, set its `issue:` to `resolved (<commit>)`. Once the PR is open,
+its **Follow-ups:** section changes with the list.
+
+**Offer to file them** as `<follow-ups>` says at two points only: after the merge (step 7),
+and when the user abandons the change, once you've added `abandoned: <date>` to the state
+file. A run that stops anywhere else lists the open ones in its report and asks nothing.
 
 ## Spec gates
 
@@ -470,9 +503,9 @@ findings wait only for this answer: they go in the same batch.
 Then spawn the **fix agent** (general-purpose) once, with the accepted code-level
 findings and the ones the user approved, copied verbatim with their `Risk:` lines and,
 for a split finding, only the accepted part. Read its report before you commit: an item
-it backed out over its check becomes a follow-up with the numbers (tell the user if they
-approved it), an UNCONFIRMED bug is dropped with a note, and a check that didn't run goes
-in the progress line and the PR body as not run. Then run the lint and unit gate again
+it backed out over its check becomes a follow-up with the numbers as evidence (tell the user
+if they approved it), an UNCONFIRMED bug is dropped with a note, and a check that didn't run
+goes in the progress line and the PR body as not run. Then run the lint and unit gate again
 and commit as `Refactors <change>`. If nothing was accepted, skip the commit. Either way,
 keep a one-line tally (`refactor: 7 findings, 3 applied (1 structural), 2 follow-ups, 2
 dropped`) for the PR body.
@@ -490,8 +523,8 @@ changed files).
 
 Check `git status --porcelain` as in step 3b (the change's own artifacts are fine), and
 restore `PRODUCT.md`, the design doc and impeccable config without asking. Run the gate
-and commit as `Polishes <change>`. Anything it flagged but didn't change becomes a
-follow-up. Tally: `polish: 6 edits in 2 files, 1 follow-up`.
+and commit as `Polishes <change>`. What it flagged but didn't change becomes follow-ups,
+unless it's taste. Tally: `polish: 6 edits in 2 files, 1 follow-up`.
 
 ## 3b. Design audit (agents F and C, if `Design audit` is selected)
 
@@ -539,11 +572,13 @@ Implements the OpenSpec change `<change>` (`openspec/changes/<change>/`).
 **Not run:** <checks that didn't run, and why; leave the line out if none>
 **Overdrive:** <direction built, "none chosen", or "skipped (…)">.
 **UX critique:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
-**Refactor:** <tally, or "skipped (deselected)">. Follow-ups: <list, or "none">.
+**Refactor:** <tally, or "skipped (deselected)">.
 **Polish:** <tally, or "skipped (…)">.
 **Design audit:** <tally, or "skipped (deselected)" / "skipped (no UI changes)">.
 **Review:** <"pending", or "skipped (deselected)">
 **Manual test:** <"pending", or "none (deselected)">
+
+<the Follow-ups section, in the form `<follow-ups>` gives; leave it out if there are none>
 
 <attribution line the session specifies for PR descriptions>
 ```
@@ -568,14 +603,14 @@ Spawn the **review agent** (general-purpose). It invokes the built-in `code-revi
 at effort `high` against the PR number and sends back the findings as text.
 
 **Triage** with the critical-bug rubric in the reference, plus the project's `critical`
-list. Fix critical bugs and drop everything else. If a finding is severe but you doubt it,
-have the fix agent confirm it before fixing. A finding it can't confirm gets dropped, with
-a note.
+list: critical bugs get fixed, other real ones become follow-ups, the rest is dropped. If a
+finding is severe but you doubt it, have the fix agent confirm it before fixing. A finding it
+can't confirm gets dropped, with a note.
 
 Fix accepted findings with the fix agent, which also adds a regression test for each bug.
 Gate: as in "Spec gates", `<full>` included if it applies. Commit as
 `Fixes <what> from review`, push, and set the PR body's **Review:** line (step 4) to the
-tally (`3 findings, 1 critical fixed, 2 dropped`).
+tally (`4 findings, 1 critical fixed, 1 follow-up, 2 dropped`).
 
 ## 6. Manual test plan (per `manual-plan:`)
 
@@ -631,6 +666,18 @@ The plan passes when every required case is `pass` or `recorded` and nothing is 
 `finding` or `blocked`. A `skip` on a required case needs the user's say-so. Update the
 PR body's **Manual test:** line with the tally (`6/6 required pass`, or `5/6, 1 fail (A3)`).
 
+**Failures the change didn't cause:** before a failing case or a logged finding goes to the
+fix agent, look for signs that the branch didn't cause it: the tester saw the same on the
+base or an installed release, or nothing in `git diff --stat <base>...HEAD` is on the case's
+path. A NOT OURS from the fix agent is one too. With no sign, it's a failure as below.
+Otherwise show the user the evidence, and what would settle it if it's thin. Their call
+decides:
+
+- **Not the change**: record a follow-up, and ask them to re-mark the case in the runner:
+  pass if what the case tests works, otherwise skip with the follow-up's id in the notes,
+  which is their say-so. The mark is theirs to make.
+- **The change, or they don't know**: a failure as below.
+
 **Failures:** give the fix agent the failing cases' ids, steps and the tester's notes
 verbatim. Run the gate, commit (`Fixes <what> found in manual testing`), push, and tell the
 user which cases to re-run. They re-mark those cases in the same runner. If a fix needs a
@@ -656,8 +703,9 @@ before that heading are for you: act on them, and leave them out of the PR. Edit
 
 When the user says they've tested, fetch the body (step 4) and read the section from the
 file: `sed -n '/^## Manual verification/,/^## /p' <file>`. It passes when it has items and
-no `- [ ]` is left. An item the user reports as failing goes to the fix agent as in
-"Failures" above; after the fix, the user re-ticks it. Tally: `manual: light, 5/5 checked`.
+no `- [ ]` is left. An item the user reports as failing is handled as in the two "Failures"
+paragraphs above; the user re-ticks it after the fix, or once it's recorded as a follow-up.
+Tally: `manual: light, 5/5 checked`.
 
 ## 7. Archive and merge
 
@@ -691,7 +739,8 @@ Before archiving, in this order; a code fix in any of them starts the list over:
    above again before merging, with `<change-dir>` the archived folder.
 4. Merge with the configured method: `gh pr merge <n> --<merge>`.
 5. Switch back with `git switch <base> && git fetch origin <base> && git merge --ff-only
-   origin/<base>`, and report the merge commit in one line.
+   origin/<base>`, set `step: 7-merged`, and report the merge commit in one line.
+6. Offer to file the open follow-ups ("Follow-ups"), then give the final report.
 
 ## Commits
 
@@ -728,6 +777,8 @@ Test plan: <runner url (full), "PR checklist" (light), or "none">
 Denied: <command and what was decided, one per line; leave out if none>
 Verification: <n>/<m> ticked; <open or waived ones>
 Already failing: <pre-existing and flaky specs, and what CI says; leave out if none>
+Follow-ups: <"<n> filed (#…), <n> skipped", plus "<n> resolved" if any; before that, the open
+  ones, one line each with id and source; leave out if none>
 Leftovers: <paths and processes outside the agents' folders; leave out if none>
 Waiting on: <what the user needs to do, or "nothing — merged as <sha>">
 Usage: <the usage table, or "unavailable">
